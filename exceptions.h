@@ -1,0 +1,18 @@
+#pragma once
+
+#include <string>
+#include <stdexcept>
+
+class TDriverError: public std::runtime_error
+{
+public:
+    explicit TDriverError(const std::string & what): std::runtime_error(what)
+    {}
+};
+
+class TUnsupportedError: public TDriverError
+{
+public:
+    explicit TUnsupportedError(const std::string & what): TDriverError(what)
+    {}
+};

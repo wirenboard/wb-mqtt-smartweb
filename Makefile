@@ -16,17 +16,22 @@ ifneq ($(CC_PATH),)
 	CC=$(CROSS_COMPILE)gcc-4.7
 endif
 
-CXXFLAGS= -std=c++11 -Wall -Werror
+CXXFLAGS= -std=c++11 -Wall
 LDFLAGS= -ljsoncpp -lwbmqtt
 
 SRC:=main.cpp
 
 OBJ=$(SRC:.cpp=.o)
+BIN=wb-mqtt-smartweb
 
-all: wb-mqtt-smartweb
+all: $(BIN)
 
 %.o: %.cpp
 	${CXX} -c $< -o $@ ${CXXFLAGS}
 
-wb-mqtt-smartweb: $(OBJ)
+$(BIN): $(OBJ)
 	${CXX} $^ ${LDFLAGS} -o $@ $(TEST_LIBS) $(SERIAL_LIBS)
+
+clean:
+	rm -f $(OBJ)
+	rm -f $(BIN)

@@ -1,4 +1,5 @@
 #include "smart_web_conventions.h"
+#include "exceptions.h"
 
 #include <wbmqtt/wbmqtt.h>
 
@@ -21,20 +22,40 @@ using namespace std;
 
 using TTimePoint        = chrono::time_point<chrono::steady_clock>;
 using TTimeIntervalMs   = chrono::milliseconds;
+using TTimeIntervalS    = chrono::seconds;
 using TTimeIntervalMin  = chrono::minutes;
 
+using TFrame        = struct can_frame;
+using TFrameData    = decltype(TFrame::data);
 
-const auto             DRIVER_NAME           = "wb-mqtt-can";
-const auto             LIBWBMQTT_DB_FILE     = "/tmp/libwbmqtt.db";
-const TTimeIntervalMs  SEND_TIME_INTERVAL_MS = TTimeIntervalMs(1000);
-const TTimeIntervalMin SEND_TIMEOUT_MIN      = TTimeIntervalMin(10);
+const auto             DRIVER_NAME            = "wb-mqtt-can";
+const auto             LIBWBMQTT_DB_FILE      = "/tmp/libwbmqtt.db";
+
+const uint8_t          CONTROLLER_TYPE        = 0x3;    // SWX for now
+const uint16_t         CHANNEL_NUMBER         = 1;
+
+const TTimeIntervalMs  SEND_TIME_INTERVAL_MS  = TTimeIntervalMs(1000);
+const TTimeIntervalS   KEEP_ALIVE_INTERVAL_MS = TTimeIntervalS(10);
+const TTimeIntervalMin SEND_TIMEOUT_MIN       = TTimeIntervalMin(10);
+
+
 
 struct TChannelState
 {
-    TTimePoint timeout;
-    TTimePoint send;
-
+    TTimePoint Timeout;
+    TTimePoint Send;
 };
+
+enum EDriverStatus
+{
+    DS_INIT, DS_HANDSHAKE, DS_IDLE
+};
+
+struct
+{
+    EDriverStatus Status = DS_INIT;
+    TTimePoint SendIAmHere;
+} DriverState;
 
 void print_usage_and_exit()
 {
@@ -60,13 +81,18 @@ int connect_can(const string &ifname)
         exit(1);
     }
 
-    strcpy(ifr.ifr_name, ifname.c_str());
-    ioctl(s, SIOCGIFINDEX, &ifr);
+    strncpy(ifr.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+	ifr.ifr_ifindex = if_nametoindex(ifr.ifr_name);
+	if (!ifr.ifr_ifindex) {
+		perror("if_nametoindex");
+		return 1;
+	}
 
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    printf("%s at index %d\n", ifname.c_str(), ifr.ifr_ifindex);
+    Info.Log() << ifname.c_str() << " at index " << ifr.ifr_ifindex;
 
     if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
@@ -77,10 +103,41 @@ int connect_can(const string &ifname)
     return s;
 }
 
+TTimePoint now()
+{
+    return chrono::steady_clock::now();
+}
+
+void print_frame(const TFrame & frame)
+{
+    SmartWeb::TCanHeader header;
+    header.raw = frame.can_id;
+
+    Debug.Log() << "frame can_id: " << hex << frame.can_id;
+
+    Debug.Log() << "program_type: " << dec << (int)header.rec.program_type;
+    Debug.Log() << "program_id: " << dec << (int)header.rec.program_id;
+    Debug.Log() << "function_id: " << dec << (int)header.rec.function_id;
+    Debug.Log() << "message_format: " << dec << (int)header.rec.message_format;
+    Debug.Log() << "message_type: " << dec << (int)header.rec.message_type;
+
+    Debug.Log() << "frame data len: " << dec << (int)frame.can_dlc;
+
+    Debug.Log() << "frame data: ";
+    if (Debug.IsEnabled()) {
+        for (int i = 0; i < frame.can_dlc; ++i)
+        {
+            printf("%02x", (int)frame.data[i]);
+        }
+        cout << endl;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     string config_fname;
     string ifname = "can0";
+    uint8_t address = 202;
 
     TMosquittoMqttConfig mqttConfig;
     bool debug = false;
@@ -111,59 +168,210 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (config_fname.empty()) {
-        print_usage_and_exit();
-    }
+    // if (config_fname.empty()) {
+    //     print_usage_and_exit();
+    // }
 
     Debug.SetEnabled(debug);
     Info.SetEnabled(debug);
 
-    auto mqtt = NewMosquittoMqttClient(mqttConfig);
-    auto driver = NewDriver(TDriverArgs{}
-        .SetId(DRIVER_NAME)
-        .SetBackend(NewDriverBackend(mqtt))
-        .SetUseStorage(true)
-        .SetReownUnknownDevices(true)
-        .SetStoragePath(LIBWBMQTT_DB_FILE)
-    );
+    // auto mqtt = NewMosquittoMqttClient(mqttConfig);
+    // auto driver = NewDriver(TDriverArgs{}
+    //     .SetId(DRIVER_NAME)
+    //     .SetBackend(NewDriverBackend(mqtt))
+    //     .SetUseStorage(true)
+    //     .SetReownUnknownDevices(true)
+    //     .SetStoragePath(LIBWBMQTT_DB_FILE)
+    // );
 
-    driver->StartLoop();
-    driver->WaitForReady();
+    // driver->StartLoop();
+    // driver->WaitForReady();
 
     auto fd = connect_can(ifname);
 
-    int nbytes;
-    struct can_frame frame;
+    auto postpone_i_am_here = [&]{ DriverState.SendIAmHere = now() + KEEP_ALIVE_INTERVAL_MS; };
 
-    while (true)
-    {
-        memset(&frame, 0, sizeof frame);
+    auto i_am_here = [&](TFrame & frame){
+        postpone_i_am_here();
 
-        nbytes = read(fd, &frame, sizeof frame);
+        Debug.Log() << "Send I_AM_HERE";
 
         SmartWeb::TCanHeader header;
 
+        header.rec.program_type = SmartWeb::PT_CONTROLLER;
+        header.rec.program_id   = address;
+        header.rec.function_id  = SmartWeb::Controller::Function::I_AM_HERE;
+        header.rec.message_format = SmartWeb::MF_FORMAT_0;
+        header.rec.message_type = SmartWeb::MT_MSG_RESPONSE;
+
+        frame.can_id = header.raw;
+        frame.can_dlc = 1;
+        frame.data[0] = CONTROLLER_TYPE;
+    };
+
+    auto get_channel_number = [&]{
+        Debug.Log() << "Send channel number";
+
+        SmartWeb::TCanHeader header;
+
+        header.rec.program_type = SmartWeb::PT_CONTROLLER;
+        header.rec.program_id   = address;
+        header.rec.function_id  = SmartWeb::Controller::Function::GET_CHANNEL_NUMBER;
+        header.rec.message_format = SmartWeb::MF_FORMAT_0;
+        header.rec.message_type = SmartWeb::MT_MSG_RESPONSE;
+
+        TFrame frame {0};
+
+        frame.can_id = header.raw;
+        frame.can_dlc = 2;
+        frame.data[0] = 0xFF & CHANNEL_NUMBER;
+        frame.data[1] = 0xFF & CHANNEL_NUMBER >> 8;
+
+        return frame;
+    };
+
+    auto get_parameter_value = [&](const TFrameData & data){
+        Debug.Log() << "Send parameter value";
+
+        SmartWeb::TCanHeader header;
+
+        header.rec.program_type = SmartWeb::PT_REMOTE_CONTROL;
+        header.rec.program_id   = address;
+        header.rec.function_id  = SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE;
+        header.rec.message_format = SmartWeb::MF_FORMAT_0;
+        header.rec.message_type = SmartWeb::MT_MSG_RESPONSE;
+
+        TFrame frame {0};
+
+        frame.can_id = header.raw;
+        frame.can_dlc = 4;
+        memcpy(frame.data, data, sizeof data);
+
+        return frame;
+    };
+
+    auto get_controller_type = [&]{
+        Debug.Log() << "Send controller type";
+
+        SmartWeb::TCanHeader header;
+
+        header.rec.program_type = SmartWeb::PT_CONTROLLER;
+        header.rec.program_id   = address;
+        header.rec.function_id  = SmartWeb::Controller::Function::GET_CONTROLLER_TYPE;
+        header.rec.message_format = SmartWeb::MF_FORMAT_0;
+        header.rec.message_type = SmartWeb::MT_MSG_RESPONSE;
+
+        TFrame frame {0};
+
+        frame.can_id = header.raw;
+        frame.can_dlc = 1;
+        frame.data[0] = CONTROLLER_TYPE;
+
+        return frame;
+    };
+
+    auto handshake_handle = [&](const SmartWeb::TCanHeader & header, const TFrameData & data) {
+        switch (header.rec.program_type) {
+            case SmartWeb::PT_CONTROLLER:
+                switch (header.rec.function_id) {
+                    case SmartWeb::Controller::Function::GET_CHANNEL_NUMBER:
+                        return get_channel_number();
+                    case SmartWeb::Controller::Function::GET_CONTROLLER_TYPE:
+                        return get_controller_type();
+                    default:
+                        throw TUnsupportedError("function id " + to_string((int)header.rec.function_id) + " is unsupported");
+                }
+            case SmartWeb::PT_REMOTE_CONTROL:
+                switch (header.rec.function_id) {
+                    case SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE:
+                        return get_parameter_value(data);
+                    default:
+                        throw TUnsupportedError("function id " + to_string((int)header.rec.function_id) + " is unsupported");
+                }
+            default:
+                throw TUnsupportedError("program_type " + to_string((int)header.rec.program_type) + " is unsupported");
+        }
+    };
+
+    int nbytes;
+    TFrame frame;
+
+    DriverState.SendIAmHere = now();
+
+    SmartWeb::TCanHeader header;
+
+//   can0  0015AC0B   [8]  00 00 00 00 00 00 00 00
+//   can0  000AAC0B   [0]
+//   can0  0003AC0B   [0]
+//   can0  0001AC16   [4]  0B 01 00 00
+//   can0  0001AC16   [4]  0B 1E 00 00
+//   can0  0001AC16   [4]  0B 02 00 00
+//   can0  0008AC0B   [0]
+//   can0  0018AC0B   [1]  00
+//   can0  0001AC16   [4]  0B 1C 00 00
+//   can0  0001AC16   [4]  0B 1D 00 00
+//   can0  0001AC16   [6]  0B 05 00 09 8A 2F
+
+
+    while (true)
+    {
+        memset(&frame, 0, sizeof(TFrame));
+
+        nbytes = read(fd, &frame, sizeof(TFrame));
+
         header.raw = frame.can_id;
 
-        cout << "--------read " << nbytes << " bytes----------" << endl;
-        cout << "frame can_id: " << hex << frame.can_id << endl;
-
-        cout << "program_type: " << dec << (int)header.rec.program_type << endl;
-        cout << "program_id: " << dec << (int)header.rec.program_id << endl;
-        cout << "function_id: " << dec << (int)header.rec.function_id << endl;
-        cout << "message_format: " << dec << (int)header.rec.message_format << endl;
-        cout << "message_type: " << dec << (int)header.rec.message_type << endl;
-
-        cout << "frame can_dlc: " << dec << (int)frame.can_dlc << endl;
-
-        cout << "frame data: ";
-        for (int i = 0; i < frame.can_dlc; ++i)
-        {
-            printf("%02x", (int)frame.data[i]);
+        if (header.rec.program_id == address) {
+            Debug.Log() << "--------read " << nbytes << " bytes----------";
+            print_frame(frame);
         }
-        cout << endl;
 
+        try {
+            TFrame send_frame;
+            switch (DriverState.Status) {
+                case DS_INIT:
+                    if (header.rec.program_id == address) {
+                        DriverState.Status = DS_HANDSHAKE;
+                        Debug.Log() << "begin handshake";
+                    } else {
+                        if (DriverState.SendIAmHere <= now()) {
+                            i_am_here(send_frame);
+                            break;
+                        }
+                        continue;
+                    }
 
+                case DS_HANDSHAKE:
+                    if (header.rec.program_id != address) {
+                        continue;
+                    }
 
+                    send_frame = handshake_handle(header, frame.data);
+                    break;
+
+                case DS_IDLE:
+                    if (header.rec.program_id == SmartWeb::PT_CONTROLLER &&
+                        header.rec.message_type == SmartWeb::MT_MSG_REQUEST &&
+                        header.rec.function_id == SmartWeb::Controller::Function::I_AM_HERE)
+                    {
+                        i_am_here(send_frame);
+                        break;
+                    }
+
+                    continue;
+            }
+
+            nbytes = write(fd, &send_frame, CAN_MTU);
+            Debug.Log() << "errno after write: " << strerror(errno);
+            if (nbytes < CAN_MTU) {
+                Error.Log() << "write error: " << strerror(errno);
+            } else {
+                Debug.Log() << "--------write " << nbytes << " bytes--------";
+            }
+            print_frame(send_frame);
+
+        } catch (const TDriverError & e) {
+            Warn.Log() << e.what();
+        }
     }
 }
