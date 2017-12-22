@@ -197,13 +197,13 @@ int main(int argc, char *argv[])
             }
 
             Json::Reader reader;
-            if(!reader.parse(config_fname, config, false)) {
+            if(!reader.parse(config_file, config, false)) {
                 throw runtime_error("Failed to parse JSON: " + reader.getFormatedErrorMessages());
             }
         }
 
-        #define REQUIRE(v) if (!config.isMember("v")) {                    \
-            throw runtime_error("Malformed JSON config: v is required");   \
+        #define REQUIRE(v) if (!config.isMember(#v)) {                    \
+            throw runtime_error("Malformed JSON config: " #v " is required");   \
         }
 
         REQUIRE(program_id)
@@ -221,8 +221,8 @@ int main(int argc, char *argv[])
         for (Json::ArrayIndex i = 0; i < channels.size(); ++i) {
             auto channel = channels[i];
 
-            #define REQUIRE(v) if (!channel.isMember("v")) {                                    \
-                throw runtime_error("Malformed JSON config: no \"v\" in channel " + to_string(i));  \
+            #define REQUIRE(v) if (!channel.isMember(#v)) {                                    \
+                throw runtime_error("Malformed JSON config: no \"" #v "\" in channel " + to_string(i));  \
             }
 
             REQUIRE(device);
@@ -253,6 +253,7 @@ int main(int argc, char *argv[])
 
     mqtt_driver->StartLoop();
     mqtt_driver->WaitForReady();
+    mqtt_driver->SetFilter(GetAllDevicesFilter());
 
     auto fd = connect_can(ifname);
 
