@@ -2,3 +2,5 @@
 *.o
 wb-mqtt-smartweb
 *.core
+test
+test.cpp

@@ -16,3 +16,10 @@ public:
     explicit TUnsupportedError(const std::string & what): TDriverError(what)
     {}
 };
+
+class TFrameError: public TDriverError
+{
+public:
+    explicit TFrameError(const std::string & what): TDriverError(what)
+    {}
+};
