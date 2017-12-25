@@ -40,21 +40,14 @@ const auto             LIBWBMQTT_DB_FILE      = "/tmp/libwbmqtt.db";
 
 const uint8_t          CONTROLLER_TYPE        = 0x3;    // SWX for now
 
-const TTimeIntervalMs  SEND_TIME_INTERVAL_MS  = TTimeIntervalMs(1000);
-const TTimeIntervalS   KEEP_ALIVE_INTERVAL_MS = TTimeIntervalS(10);
-const TTimeIntervalMin SEND_TIMEOUT_MIN       = TTimeIntervalMin(10);
+const TTimeIntervalS   KEEP_ALIVE_INTERVAL_S = TTimeIntervalS(10);      // if nothing else to do - each 10 seconds send I_AM_HERE
+const TTimeIntervalMin CONNECTION_TIMEOUT_MIN = TTimeIntervalMin(10);   // after 10 minutes without any messages connection is considered lost
+const TTimeIntervalMs  READ_TIMEOUT_MS        = TTimeIntervalMs(1000);  // 1 sec for messages waiting
 
-
-
-struct TChannelState
-{
-    TTimePoint Timeout;
-    TTimePoint Send;
-};
 
 enum EDriverStatus
 {
-    DS_INIT, DS_HANDSHAKE, DS_IDLE
+    DS_IDLE, DS_RUNNING
 };
 
 struct TMqttChannel
@@ -64,10 +57,15 @@ struct TMqttChannel
 
 struct
 {
-    EDriverStatus                           Status = DS_INIT;
-    TTimePoint                              SendIAmHere;
-    unordered_map<string, TMqttChannel>     Mapping;
+    EDriverStatus                           Status = DS_IDLE;
+    TTimePoint                              SendIAmHereTime;
+    TTimePoint                              ResetConnectionTime;
+    unordered_map<uint32_t, TMqttChannel>   Mapping;
 } DriverState;
+
+TLogger::TOutput logger_stdout {std::cout};
+
+TLogger LocalDebug("DEBUG: ", logger_stdout, 15);
 
 void print_usage_and_exit()
 {
@@ -115,6 +113,25 @@ int connect_can(const string & ifname)
     return s;
 }
 
+bool select_timeout(int fd)
+{
+    fd_set rfds;
+    struct timeval tv, *tvp = 0;
+
+    FD_ZERO(&rfds);
+    FD_SET(fd, &rfds);
+
+    tv.tv_sec = READ_TIMEOUT_MS.count() / 1000;
+    tv.tv_usec = READ_TIMEOUT_MS.count() * 1000;
+    tvp = &tv;
+
+    int r = select(fd + 1, &rfds, NULL, NULL, tvp);
+    if (r < 0)
+        throw TDriverError("select() failed");
+
+    return r > 0;
+}
+
 TTimePoint now()
 {
     return chrono::steady_clock::now();
@@ -129,18 +146,18 @@ void print_frame(const TFrame & frame)
         return;
     }
 
-    Debug.Log() << "frame can_id: " << hex << frame.can_id;
+    LocalDebug.Log() << "frame can_id: " << hex << frame.can_id;
 
-    Debug.Log() << "program_type: " << dec << (int)header.rec.program_type;
-    Debug.Log() << "program_id: " << dec << (int)header.rec.program_id;
-    Debug.Log() << "function_id: " << dec << (int)header.rec.function_id;
-    Debug.Log() << "message_format: " << dec << (int)header.rec.message_format;
-    Debug.Log() << "message_type: " << dec << (int)header.rec.message_type;
+    LocalDebug.Log() << "program_type: " << dec << (int)header.rec.program_type;
+    LocalDebug.Log() << "program_id: " << dec << (int)header.rec.program_id;
+    LocalDebug.Log() << "function_id: " << dec << (int)header.rec.function_id;
+    LocalDebug.Log() << "message_format: " << dec << (int)header.rec.message_format;
+    LocalDebug.Log() << "message_type: " << dec << (int)header.rec.message_type;
 
-    Debug.Log() << "frame data len: " << dec << (int)frame.can_dlc;
+    LocalDebug.Log() << "frame data len: " << dec << (int)frame.can_dlc;
 
-    Debug.Log() << "frame data: ";
-    if (Debug.IsEnabled()) {
+    LocalDebug.Log() << "frame data: ";
+    if (LocalDebug.IsEnabled()) {
         for (int i = 0; i < frame.can_dlc; ++i)
         {
             printf("%02x", (int)frame.data[i]);
@@ -156,15 +173,15 @@ int main(int argc, char *argv[])
     uint8_t program_id = 0;
 
     TMosquittoMqttConfig mqttConfig;
-    bool debug = false;
+    uint8_t debug = 0;
 
     int c;
 
-    while ( (c = getopt(argc, argv, "c:h:p:di:")) != -1) {
+    while ( (c = getopt(argc, argv, "c:h:p:d:i:")) != -1) {
         //~ int this_option_optind = optind ? optind : 1;
         switch (c) {
         case 'd':
-            debug = true;
+            debug = stoul(optarg);
             break;
         case 'c':
             config_fname = optarg;
@@ -221,26 +238,50 @@ int main(int argc, char *argv[])
         for (Json::ArrayIndex i = 0; i < channels.size(); ++i) {
             auto channel = channels[i];
 
-            #define REQUIRE(v) if (!channel.isMember(#v)) {                                    \
-                throw runtime_error("Malformed JSON config: no \"" #v "\" in channel " + to_string(i));  \
-            }
+            #define REQUIRE(o, v) [&]{if (!o.isMember(#v)) {                                    \
+                throw runtime_error("Malformed JSON config: no \"" #v "\" in " #o + to_string(i));  \
+            } \
+            return o[#v];}()
 
-            REQUIRE(device);
-            REQUIRE(channel);
-            REQUIRE(parameter_id);
+            const auto & mqtt = REQUIRE(channel, mqtt);
+            const auto & can = REQUIRE(channel, can);
+
+            const auto & mqtt_device = REQUIRE(mqtt, device).asString();
+            const auto & mqtt_channel = REQUIRE(mqtt, channel).asString();
+
+            SmartWeb::TParameterInfo parameter_info {0};
+            {
+                parameter_info.parameter_id = REQUIRE(can, parameter_id).asUInt();
+                parameter_info.program_type = REQUIRE(can, program_type).asUInt();
+                parameter_info.index = REQUIRE(can, parameter_index).asUInt();
+            }
 
             #undef REQUIRE
 
+            Info.Log() << "Map parameter";
+            Info.Log() << "\t program_type " << (int)parameter_info.program_type;
+            Info.Log() << "\t parameter_id " << (int)parameter_info.parameter_id;
+            Info.Log() << "\t parameter_index " << (int)parameter_info.index;
+            Info.Log() << "\t raw " << (int)parameter_info.raw;
 
-            DriverState.Mapping[channel["parameter_id"].asString()] = TMqttChannel{
-                channel["device"].asString(),
-                channel["channel"].asString()
-            };
+            DriverState.Mapping[parameter_info.raw] = { mqtt_device, mqtt_channel };
         }
     }
 
-    Debug.SetEnabled(debug);
-    Info.SetEnabled(debug);
+    Debug.SetEnabled(false);
+    LocalDebug.SetEnabled(false);
+    Info.SetEnabled(false);
+
+    switch (debug) {
+        case 3:
+            Debug.SetEnabled(true);
+        case 2:
+            LocalDebug.SetEnabled(true);
+        case 1:
+            Info.SetEnabled(true);
+        default:
+            break;
+    }
 
     auto mqtt = NewMosquittoMqttClient(mqttConfig);
     auto mqtt_driver = NewDriver(TDriverArgs{}
@@ -275,12 +316,13 @@ int main(int argc, char *argv[])
         return frame;
     };
 
-    auto postpone_i_am_here = [&]{ DriverState.SendIAmHere = now() + KEEP_ALIVE_INTERVAL_MS; };
+    auto postpone_i_am_here = [&]{ DriverState.SendIAmHereTime = now() + KEEP_ALIVE_INTERVAL_S; };
+    auto postpone_connection_reset = [&]{ DriverState.ResetConnectionTime = now() + CONNECTION_TIMEOUT_MIN; };
 
     auto i_am_here = [&](){
         postpone_i_am_here();
 
-        Debug.Log() << "Send I_AM_HERE";
+        LocalDebug.Log() << "Send I_AM_HERE";
 
         SmartWeb::TCanHeader header;
 
@@ -299,7 +341,7 @@ int main(int argc, char *argv[])
     };
 
     auto get_channel_number = [&](TFrame & response){
-        Debug.Log() << "Send channel number";
+        LocalDebug.Log() << "Send channel number";
 
         auto channel_number = DriverState.Mapping.size();
         response.can_dlc = 2;
@@ -308,51 +350,57 @@ int main(int argc, char *argv[])
     };
 
     auto get_parameter_value = [&](TFrame & response, const TFrameData & data){
-        union {
-            uint32_t raw;
-            struct {
-                uint8_t  program_type,
-                         parameter_id;
-                uint16_t parameter_index;
-            };
-        } request_data;
+        SmartWeb::TParameterData parameter_data {0};
 
-        memcpy(&request_data.raw, data, sizeof request_data);
+        memcpy(&parameter_data.raw, data, 4);
 
-        Debug.Log() << "Get parameter";
-        Debug.Log() << "\t program_type " << (int)request_data.program_type;
-        Debug.Log() << "\t parameter_id " << (int)request_data.parameter_id;
-        Debug.Log() << "\t parameter_index " << (int)request_data.parameter_index;
+        LocalDebug.Log() << "Get parameter";
+        LocalDebug.Log() << "\t program_type " << (int)parameter_data.program_type;
+        LocalDebug.Log() << "\t parameter_id " << (int)parameter_data.parameter_id;
+        LocalDebug.Log() << "\t parameter_index " << (int)parameter_data.indexed_parameter.index;
+        LocalDebug.Log() << "\t raw " << (int)parameter_data.raw_info;
 
-        if (request_data.program_type != SmartWeb::PT_CONTROLLER) {
-            throw TUnsupportedError("Unsupported program type " + to_string((int)request_data.program_type) + " for GET_PARAMETER_VALUE");
+        if (parameter_data.program_type != SmartWeb::PT_CONTROLLER) {
+            throw TUnsupportedError("Unsupported program type " + to_string((int)parameter_data.program_type) + " for GET_PARAMETER_VALUE");
         }
 
-        const auto & itDeviceChannel = DriverState.Mapping.find(to_string(request_data.parameter_index));
+        const auto & itDeviceChannel = DriverState.Mapping.find(parameter_data.raw_info);
+
+        int16_t value = SmartWeb::SENSOR_UNDEFINED;
 
         if (itDeviceChannel == DriverState.Mapping.end()) {
-            throw TUnsupportedError("Unsupported parameter index " + to_string((int)request_data.parameter_index));
+            Warn.Log() << "Unmapped parameter: "
+                "\n\t program_type: "  << (int)parameter_data.program_type <<
+                "\n\t parameter_id: " << (int)parameter_data.parameter_id <<
+                "\n\t parameter_index: " << (int)parameter_data.indexed_parameter.index;
+        } else {
+            value = SmartWeb::SensorData::FromDouble(
+                mqtt_driver->BeginTx()->GetDevice(itDeviceChannel->second.device)->GetControl(itDeviceChannel->second.channel)->GetValue().As<double>()
+            );
         }
 
-        auto parameter_value = mqtt_driver->BeginTx()->GetDevice(itDeviceChannel->second.device)->GetControl(itDeviceChannel->second.channel)->GetValue().As<double>();
+        response.can_dlc = 5;
 
-        uint16_t value = static_cast<uint16_t>(parameter_value);
+        memset(response.data, 0, sizeof response.data);
 
-        response.can_dlc = 6;
+        memcpy(parameter_data.indexed_parameter.value, &value, sizeof value);
 
-        memcpy(response.data, data, 4);
-        response.data[4] = 0xFF & value >> 8;
-        response.data[5] = 0xFF & value;
+        memcpy(response.data, &parameter_data.raw, 5);
+
+        Info.Log() << " Parameter {type: " << (int)parameter_data.program_type
+                             << ", id: " << (int)parameter_data.parameter_id
+                             << ", index: " << (int)parameter_data.indexed_parameter.index
+                             << "} <== " << SmartWeb::SensorData::ToDouble(value);
     };
 
     auto get_controller_type = [&](TFrame & response){
-        Debug.Log() << "Send controller type";
+        LocalDebug.Log() << "Send controller type";
 
         response.can_dlc = 1;
         response.data[0] = CONTROLLER_TYPE;
     };
 
-    auto handshake_handle = [&](TFrame & response, const SmartWeb::TCanHeader & header, const TFrameData & data) {
+    auto handle_request = [&](TFrame & response, const SmartWeb::TCanHeader & header, const TFrameData & data) {
         switch (header.rec.program_type) {
             case SmartWeb::PT_CONTROLLER:
                 switch (header.rec.function_id) {
@@ -360,6 +408,9 @@ int main(int argc, char *argv[])
                         return get_channel_number(response);
                     case SmartWeb::Controller::Function::GET_CONTROLLER_TYPE:
                         return get_controller_type(response);
+                    case SmartWeb::Controller::Function::I_AM_HERE:
+                        response = i_am_here();
+                        return;
                     default:
                         throw TUnsupportedError("function id " + to_string((int)header.rec.function_id) + " is unsupported");
                 }
@@ -376,85 +427,86 @@ int main(int argc, char *argv[])
     };
 
     int nbytes;
-    TFrame frame;
+    TFrame frame {0};
 
-    DriverState.SendIAmHere = now();
+    DriverState.SendIAmHereTime = now();
 
-    SmartWeb::TCanHeader header;
+    SmartWeb::TCanHeader header {0};
 
-//   can0  0015AC0B   [8]  00 00 00 00 00 00 00 00
-//   can0  000AAC0B   [0]
-//   can0  0003AC0B   [0]
-//   can0  0001AC16   [4]  0B 01 00 00
-//   can0  0001AC16   [4]  0B 1E 00 00
-//   can0  0001AC16   [4]  0B 02 00 00
-//   can0  0008AC0B   [0]
-//   can0  0018AC0B   [1]  00
-//   can0  0001AC16   [4]  0B 1C 00 00
-//   can0  0001AC16   [4]  0B 1D 00 00
-//   can0  0001AC16   [6]  0B 05 00 09 8A 2F
+//   can0  0015AC0B   [8]  00 00 00 00 00 00 00 00  (CONTROLLER: JOURNAL (Get controller journal notes))
+//   can0  000AAC0B   [0]                           (CONTROLLER: GET_CHANNEL_NUMBER (Узнать количество входов/выходов))
+//   can0  0003AC0B   [0]                           (CONTROLLER: GET_ACTIVE_PROGRAMS_LIST (Узнать список активных программ))
+//   can0  0001AC16   [4]  0B 01 00 00              (REMOTE_CONTROL: GET_PARAMETER_VALUE)
+//   can0  0001AC16   [4]  0B 1E 00 00              (REMOTE_CONTROL: GET_PARAMETER_VALUE)
+//   can0  0001AC16   [4]  0B 02 00 00              (REMOTE_CONTROL: GET_PARAMETER_VALUE)
+//   can0  0008AC0B   [0]                           (CONTROLLER: GET_CONTROLLER_TYPE (Узнать тип контроллера))
+//   can0  0018AC0B   [1]  00                       (CONTROLLER: GET_RELAY_MAPPING (Get controller output binding))
+//   can0  0001AC16   [4]  0B 1C 00 00              (REMOTE_CONTROL: GET_PARAMETER_VALUE)
+//   can0  0001AC16   [4]  0B 1D 00 00              (REMOTE_CONTROL: GET_PARAMETER_VALUE)
+//   can0  0001AC16   [6]  0B 05 00 09 8A 2F        (REMOTE_CONTROL: GET_PARAMETER_VALUE)
 
 
     while (true)
     {
         memset(&frame, 0, sizeof(TFrame));
 
-        nbytes = read(fd, &frame, sizeof(TFrame));
+        if (select_timeout(fd)) {
+            nbytes = read(fd, &frame, sizeof(TFrame));
+        } else {
+            if (DriverState.Status != DS_IDLE) {
+                if (DriverState.ResetConnectionTime <= now()) {
+                    DriverState.Status = DS_IDLE;
+                    Info.Log() << "CONNECTION LOST: TIMEOUT. IDLE";
+                }
+            }
+        }
 
         header.raw = frame.can_id;
 
         if (header.rec.program_id == program_id) {
-            Debug.Log() << "--------read " << nbytes << " bytes----------";
+            LocalDebug.Log() << "--------read " << nbytes << " bytes----------";
             print_frame(frame);
         }
 
         try {
             TFrame response_frame {0};
             switch (DriverState.Status) {
-                case DS_INIT:
+                case DS_IDLE:
                     if (header.rec.program_id == program_id) {
-                        DriverState.Status = DS_HANDSHAKE;
-                        Debug.Log() << "begin handshake";
+                        DriverState.Status = DS_RUNNING;
+                        Info.Log() << "CONNECTION ESTABILISHED. RUNNING";
                     } else {
-                        if (DriverState.SendIAmHere <= now()) {
+                        if (DriverState.SendIAmHereTime <= now()) {
                             response_frame = i_am_here();
                             break;
                         }
                         continue;
                     }
 
-                case DS_HANDSHAKE:
-                    if (header.rec.program_id != program_id) {
-
+                case DS_RUNNING:
+                    if (header.rec.program_id == program_id) {
+                        postpone_connection_reset();
+                    } else {
+                        continue;
                     }
+
                     try {
                         response_frame = get_response_frame(frame);
                     } catch (const TFrameError &) {
                         continue;
                     }
 
-                    handshake_handle(response_frame, header, frame.data);
+                    handle_request(response_frame, header, frame.data);
                     break;
-
-                case DS_IDLE:
-                    if (header.rec.program_id == SmartWeb::PT_CONTROLLER &&
-                        header.rec.message_type == SmartWeb::MT_MSG_REQUEST &&
-                        header.rec.function_id == SmartWeb::Controller::Function::I_AM_HERE)
-                    {
-                        response_frame = i_am_here();
-                        break;
-                    }
-
-                    continue;
             }
 
             // response_frame.can_id |= CAN_EFF_FLAG;
             nbytes = write(fd, &response_frame, CAN_MTU);
 
-            if (nbytes < CAN_MTU) {
+            if (nbytes < static_cast<int>(CAN_MTU)) {
                 Error.Log() << "write error: " << strerror(errno);
             } else {
-                Debug.Log() << "--------write " << nbytes << " bytes--------";
+                LocalDebug.Log() << "--------write " << nbytes << " bytes--------";
             }
             print_frame(response_frame);
 

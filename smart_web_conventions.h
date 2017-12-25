@@ -1,8 +1,14 @@
 #pragma once
 #include <stdint.h>
+#include <limits>
 
 namespace SmartWeb
 {
+    const int16_t SENSOR_SHORT_VALUE = -32768;
+    const int16_t SENSOR_OPEN_VALUE  = -32767;
+    const int16_t SENSOR_UNDEFINED   = -32766;
+
+
     enum E_MessageFormat : uint8_t
     {
         MF_FORMAT_0,
@@ -172,4 +178,56 @@ namespace SmartWeb
             };
         } rec;
     };
+
+    union TParameterData {
+        uint64_t raw;
+        uint32_t raw_info;
+
+        struct {
+            uint8_t program_type,
+                    parameter_id;
+            union {
+                uint8_t value[6];
+                struct {
+                    uint8_t	index;
+                    uint8_t value[5];
+                } indexed_parameter;
+                struct {
+                    uint8_t indexN;
+                    uint8_t indexM;
+                    uint8_t value[4];
+                } table_parameter;
+            };
+        };
+    };
+
+    union TParameterInfo {
+        uint32_t raw;
+        struct {
+            uint8_t program_type,
+                    parameter_id;
+            union {
+                struct {
+                    uint8_t	index;
+                };
+                struct {
+                    uint8_t indexN;
+                    uint8_t indexM;
+                };
+            };
+        };
+    };
+
+    namespace SensorData {
+        inline int16_t FromDouble(double value) {
+            return static_cast<int16_t>(value * 10);
+        }
+
+        inline double ToDouble(int16_t value) {
+            if (value == SENSOR_UNDEFINED) {
+                return std::numeric_limits<double>::quiet_NaN();
+            }
+            return static_cast<double>(value) / 10;
+        }
+    }
 }
