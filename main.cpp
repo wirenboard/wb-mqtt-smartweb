@@ -71,7 +71,7 @@ void print_usage_and_exit()
 {
     printf("Usage:\n wb-mqtt-smartweb [options]\n");
     printf("Options:\n");
-    printf("\t-d          \t\t\t enable debuging output\n");
+    printf("\t-d level    \t\t\t enable debuging output\n");
     printf("\t-c config   \t\t\t config file\n");
     printf("\t-p PORT     \t\t\t set to what port wb-mqtt-serial should connect (default: 1883)\n");
     printf("\t-H IP       \t\t\t set to what IP wb-mqtt-serial should connect (default: localhost)\n");
