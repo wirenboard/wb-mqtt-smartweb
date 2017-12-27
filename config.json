@@ -4,7 +4,7 @@
         {
             "mqtt": {
                 "device": "wb-adc",
-                "channel": "Vin"
+                "control": "Vin"
             },
             "parameter": {
                 "parameter_id": 1,
@@ -15,7 +15,7 @@
         {
             "mqtt": {
                 "device": "wb-adc",
-                "channel": "R1"
+                "control": "R1"
             },
             "sensor": {
                 "index": 1

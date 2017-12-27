@@ -1,0 +1,103 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "SmartWeb Driver Configuration",
+    "description": "Exposes Wirenboard periphery to SmartWeb CAN network",
+    "definitions": {
+      "mqtt": {
+        "type": "object",
+        "title": "MQTT",
+        "headerTemplate": "{{self.device}}/{{self.control}}",
+        "properties": {
+          "device": {
+            "type": "string",
+            "title": "Device Id",
+            "minLength": 1,
+            "propertyOrder": 1
+          },
+          "control": {
+            "type": "string",
+            "title": "Control Id",
+            "minLength": 1,
+            "propertyOrder": 2
+          }
+        },
+        "required": ["device", "control"]
+      },
+      "sensor": {
+        "type": "object",
+        "title": "SmartWeb sensor",
+        "headerTemplate": "Sensor {{self.index}}",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "minimum": 0,
+            "maximum": 255,
+            "propertyOrder": 1
+          }
+        },
+        "required": ["index"]
+      },
+      "output": {
+        "type": "object",
+        "title": "SmartWeb output mapping point",
+        "headerTemplate": "Output mapping {{self.channel_id}}",
+        "properties": {
+          "channel_id": {
+            "type": "integer",
+            "title": "Index",
+            "minimum": 0,
+            "maximum": 31,
+            "propertyOrder": 1
+          }
+        },
+        "required": ["channel_id"]
+      },
+      "mapping": {
+        "type": "object",
+        "title": "Mapping",
+        "headerTemplate": "Mapping of {{self.mqtt.device}}/{{self.mqtt.control}}",
+        "properties": {
+          "mqtt": {
+            "propertyOrder": 1,
+            "$ref": "#/definitions/mqtt"
+          },
+          "sensor": {
+            "propertyOrder": 2,
+            "$ref": "#/definitions/sensor"
+          },
+          "output": {
+            "propertyOrder": 3,
+            "$ref": "#/definitions/output"
+          }
+        },
+        "required": ["mqtt"],
+        "_format": "grid"
+      }
+    },
+    "properties": {
+      "controller_id": {
+        "type": "integer",
+        "title": "SmartWeb controller id",
+        "default": 0,
+        "minimum": 1,
+        "maximum": 255,
+        "propertyOrder": 1
+      },
+      "mappings": {
+        "type": "array",
+        "title": "Mappings",
+        "description": "Wirenboard <--> SmartWeb mappings",
+        "items": { "$ref": "#/definitions/mapping" },
+        "minItems": 1,
+        "_format": "table",
+        "propertyOrder": 2
+      }
+    },
+    "required": ["controller_id", "mappings"],
+    "configFile": {
+      "path": "/etc/wb-mqtt-smartweb.conf",
+      "service": "wb-mqtt-smartweb"
+    }
+  }

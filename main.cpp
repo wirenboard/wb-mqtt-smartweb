@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
 
             const auto & mqtt = REQUIRE(mapping, mqtt);
             const auto & mqtt_device = REQUIRE(mqtt, device).asString();
-            const auto & mqtt_channel = REQUIRE(mqtt, channel).asString();
+            const auto & mqtt_control = REQUIRE(mqtt, control).asString();
 
             if (mapping.isMember("parameter") || mapping.isMember("sensor")) {
                 SmartWeb::TParameterInfo parameter_info {0};
@@ -304,13 +304,13 @@ int main(int argc, char *argv[])
                         << "parameter_index: " << (int)parameter_info.index << ", "
                         << "raw " << (int)parameter_info.raw
                         << "} to {device: " << mqtt_device << ", "
-                        << "channel: " << mqtt_channel << "};";
+                        << "control: " << mqtt_control << "};";
 
                 if (DriverState.ParameterMapping.count(parameter_info.raw)) {
                     throw runtime_error("Malformed JSON config: parameter duplicate");
                 }
 
-                DriverState.ParameterMapping[parameter_info.raw] = { mqtt_device, mqtt_channel };
+                DriverState.ParameterMapping[parameter_info.raw] = { mqtt_device, mqtt_control };
 
             }
 
@@ -325,12 +325,12 @@ int main(int argc, char *argv[])
                 Info.Log() << "Map output {"
                         << "channel_id: " << (int)channel_id
                         << "} to {device: " << mqtt_device << ", "
-                        << "channel: " << mqtt_channel << "};";
+                        << "control: " << mqtt_control << "};";
 
                 auto & channel = DriverState.OutputMapping[channel_id];
 
                 channel.device = move(mqtt_device);
-                channel.control = move(mqtt_channel);
+                channel.control = move(mqtt_control);
             }
 
             if (
@@ -432,7 +432,7 @@ int main(int argc, char *argv[])
             if (control->GetError().empty()) {
                 return SmartWeb::SensorData::FromDouble(control->GetValue().As<double>());
             } else {
-                Info.Log() << "Unable to read mqtt value because of error on channel " << control_id << " of device " << device_id << ": " << control->GetError();
+                Info.Log() << "Unable to read mqtt value because of error on control " << control_id << " of device " << device_id << ": " << control->GetError();
                 return SmartWeb::SENSOR_UNDEFINED;
             }
         } catch (const WBMQTT::TBaseException & e) {
