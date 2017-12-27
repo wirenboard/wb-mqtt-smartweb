@@ -1,12 +1,12 @@
 {
-    "program_id": 204,
-    "channels": [
+    "controller_id": 204,
+    "mappings": [
         {
             "mqtt": {
                 "device": "wb-adc",
                 "channel": "Vin"
             },
-            "can": {
+            "parameter": {
                 "parameter_id": 1,
                 "program_type": 11,
                 "parameter_index": 0
@@ -17,10 +17,11 @@
                 "device": "wb-adc",
                 "channel": "R1"
             },
-            "can": {
-                "parameter_id": 1,
-                "program_type": 11,
-                "parameter_index": 1
+            "sensor": {
+                "index": 1
+            },
+            "output": {
+                "channel_id": 0
             }
         }
     ]

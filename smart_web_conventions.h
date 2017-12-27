@@ -56,6 +56,28 @@ namespace SmartWeb
         MT_MSG_ERROR = 3,
     };
 
+    struct TMappingPoint {
+        enum {
+            CHANNEL_SENSOR_LOCAL = 0,
+            CHANNEL_RELAY_LOCAL,
+            CHANNEL_SENSOR,
+            CHANNEL_RELAY,
+            CHANNEL_INPUT,
+            CHANNEL_OUTPUT,
+            //	CHANNEL_RESERVED,
+            CHANNEL_UNDEFINED = 7,
+        };
+        union {
+            struct {
+                uint8_t hostID;
+                uint8_t channelID:5;
+                uint8_t type:3;
+            };
+            uint8_t rawID[2];
+            uint16_t raw;
+        };
+    };
+
     namespace Controller
     {
         namespace Function

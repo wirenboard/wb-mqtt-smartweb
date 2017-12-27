@@ -27,23 +27,26 @@
 using namespace WBMQTT;
 using namespace std;
 
-using TTimePoint        = chrono::time_point<chrono::steady_clock>;
-using TTimeIntervalMs   = chrono::milliseconds;
-using TTimeIntervalS    = chrono::seconds;
-using TTimeIntervalMin  = chrono::minutes;
+using TTimePoint       = chrono::time_point<chrono::steady_clock>;
+using TTimeIntervalMs  = chrono::milliseconds;
+using TTimeIntervalS   = chrono::seconds;
+using TTimeIntervalMin = chrono::minutes;
 
-using TFrame        = struct can_frame;
-using TFrameData    = decltype(TFrame::data);
+using TFrame     = struct can_frame;
+using TFrameData = decltype(TFrame::data);
 
-const auto             DRIVER_NAME            = "wb-mqtt-can";
-const auto             LIBWBMQTT_DB_FILE      = "/tmp/libwbmqtt.db";
+const auto    DRIVER_NAME       = "wb-mqtt-smartweb";
+const auto    LIBWBMQTT_DB_FILE = "/tmp/libwbmqtt.db";
+const uint8_t CONTROLLER_TYPE   = 0x3;    // SWX for now
+const uint8_t CONTROLLER_OUTPUT_MAX = 32;
 
-const uint8_t          CONTROLLER_TYPE        = 0x3;    // SWX for now
+const auto KEEP_ALIVE_INTERVAL_S     = TTimeIntervalS(10);     // if nothing else to do - each 10 seconds send I_AM_HERE
+const auto CONNECTION_TIMEOUT_MIN    = TTimeIntervalMin(10);   // after 10 minutes without any messages connection is considered lost
+const auto SEND_MESSAGES_TIME_M      = TTimeIntervalMin(10);   // send value during 10 minutes
+const auto SEND_MESSAGES_INTERVAL_MS = TTimeIntervalMs(1000);  // interval between messages
+const auto READ_TIMEOUT_MS           = TTimeIntervalMs(1000);  // 1 sec for messages waiting
 
-const TTimeIntervalS   KEEP_ALIVE_INTERVAL_S = TTimeIntervalS(10);      // if nothing else to do - each 10 seconds send I_AM_HERE
-const TTimeIntervalMin CONNECTION_TIMEOUT_MIN = TTimeIntervalMin(10);   // after 10 minutes without any messages connection is considered lost
-const TTimeIntervalMs  READ_TIMEOUT_MS        = TTimeIntervalMs(1000);  // 1 sec for messages waiting
-
+TTimePoint now();
 
 enum EDriverStatus
 {
@@ -52,15 +55,52 @@ enum EDriverStatus
 
 struct TMqttChannel
 {
-    string device, channel;
+    string device, control;
+    bool is_initialized() const
+    {
+        return !device.empty() || !control.empty();
+    }
+};
+
+struct TChannelState {
+    TTimePoint SendTimePoint;       // next send timepoint
+    TTimePoint SendEndTimePoint;    // when to stop sending messages
+
+    void postpone_send()
+    {
+        SendTimePoint = now() + SEND_MESSAGES_INTERVAL_MS;
+    }
+
+    void postpone_send_end()
+    {
+        SendEndTimePoint = now() + SEND_MESSAGES_TIME_M;
+    }
+
+    void schedule_to_send()
+    {
+        SendTimePoint = now();
+        postpone_send_end();
+    }
+};
+
+struct TBroadcastChannel: TMqttChannel, TChannelState
+{
+    SmartWeb::TMappingPoint mapping_point;
+
+    void schedule_to_send(const SmartWeb::TMappingPoint & mp)
+    {
+        TChannelState::schedule_to_send();
+        mapping_point = mp;
+    }
 };
 
 struct
 {
-    EDriverStatus                           Status = DS_IDLE;
-    TTimePoint                              SendIAmHereTime;
-    TTimePoint                              ResetConnectionTime;
-    unordered_map<uint32_t, TMqttChannel>   Mapping;
+    EDriverStatus                               Status = DS_IDLE;
+    TTimePoint                                  SendIAmHereTime;
+    TTimePoint                                  ResetConnectionTime;
+    unordered_map<uint32_t, TMqttChannel>       ParameterMapping;
+    TBroadcastChannel                           OutputMapping[CONTROLLER_OUTPUT_MAX];
 } DriverState;
 
 TLogger::TOutput logger_stdout {std::cout};
@@ -73,8 +113,8 @@ void print_usage_and_exit()
     printf("Options:\n");
     printf("\t-d level    \t\t\t enable debuging output\n");
     printf("\t-c config   \t\t\t config file\n");
-    printf("\t-p PORT     \t\t\t set to what port wb-mqtt-serial should connect (default: 1883)\n");
-    printf("\t-H IP       \t\t\t set to what IP wb-mqtt-serial should connect (default: localhost)\n");
+    printf("\t-p PORT     \t\t\t set to what port wb-mqtt-smartweb should connect (default: 1883)\n");
+    printf("\t-H IP       \t\t\t set to what IP wb-mqtt-smartweb should connect (default: localhost)\n");
     printf("\t-i interface       \t\t\t CAN interface (default: can0)\n");
     exit(-1);
 }
@@ -141,10 +181,6 @@ void print_frame(const TFrame & frame)
 {
     SmartWeb::TCanHeader header;
     header.raw = frame.can_id;
-
-    if (header.rec.program_type != SmartWeb::PT_REMOTE_CONTROL || header.rec.function_id != SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE) {
-        return;
-    }
 
     LocalDebug.Log() << "frame can_id: " << hex << frame.can_id;
 
@@ -223,49 +259,90 @@ int main(int argc, char *argv[])
             throw runtime_error("Malformed JSON config: " #v " is required");   \
         }
 
-        REQUIRE(program_id)
-        REQUIRE(channels)
+        REQUIRE(controller_id)
+        REQUIRE(mappings)
 
         #undef REQUIRE
 
-        program_id = config["program_id"].asUInt();
-        const auto & channels = config["channels"];
+        program_id = config["controller_id"].asUInt();
+        const auto & mappings = config["mappings"];
 
-        if (channels.size() == 0) {
-            throw runtime_error("Malformed JSON config: no channels");
+        if (mappings.size() == 0) {
+            throw runtime_error("Malformed JSON config: no mappings defined");
         }
 
-        for (Json::ArrayIndex i = 0; i < channels.size(); ++i) {
-            auto channel = channels[i];
+        #define REQUIRE(o, v) [&]{if (!o.isMember(#v)) {                                    \
+            throw runtime_error("Malformed JSON config: no \"" #v "\" in " #o + to_string(i));  \
+        } \
+        return o[#v];}()
 
-            #define REQUIRE(o, v) [&]{if (!o.isMember(#v)) {                                    \
-                throw runtime_error("Malformed JSON config: no \"" #v "\" in " #o + to_string(i));  \
-            } \
-            return o[#v];}()
+        for (Json::ArrayIndex i = 0; i < mappings.size(); ++i) {
+            auto mapping = mappings[i];
 
-            const auto & mqtt = REQUIRE(channel, mqtt);
-            const auto & can = REQUIRE(channel, can);
-
+            const auto & mqtt = REQUIRE(mapping, mqtt);
             const auto & mqtt_device = REQUIRE(mqtt, device).asString();
             const auto & mqtt_channel = REQUIRE(mqtt, channel).asString();
 
-            SmartWeb::TParameterInfo parameter_info {0};
-            {
-                parameter_info.parameter_id = REQUIRE(can, parameter_id).asUInt();
-                parameter_info.program_type = REQUIRE(can, program_type).asUInt();
-                parameter_info.index = REQUIRE(can, parameter_index).asUInt();
+            if (mapping.isMember("parameter") || mapping.isMember("sensor")) {
+                SmartWeb::TParameterInfo parameter_info {0};
+
+                if (mapping.isMember("parameter")) {
+                    const auto & parameter = REQUIRE(mapping, parameter);
+                    parameter_info.parameter_id = REQUIRE(parameter, parameter_id).asUInt();
+                    parameter_info.program_type = REQUIRE(parameter, program_type).asUInt();
+                    parameter_info.index = REQUIRE(parameter, parameter_index).asUInt();
+                } else {
+                    const auto & sensor = REQUIRE(mapping, sensor);
+                    parameter_info.parameter_id = SmartWeb::Controller::Parameters::SENSOR;
+                    parameter_info.program_type = SmartWeb::PT_CONTROLLER;
+                    parameter_info.index = REQUIRE(sensor, index).asUInt();
+                }
+
+                Info.Log() << "Map parameter {"
+                        << "program_type: " << (int)parameter_info.program_type << ", "
+                        << "parameter_id: " << (int)parameter_info.parameter_id << ", "
+                        << "parameter_index: " << (int)parameter_info.index << ", "
+                        << "raw " << (int)parameter_info.raw
+                        << "} to {device: " << mqtt_device << ", "
+                        << "channel: " << mqtt_channel << "};";
+
+                if (DriverState.ParameterMapping.count(parameter_info.raw)) {
+                    throw runtime_error("Malformed JSON config: parameter duplicate");
+                }
+
+                DriverState.ParameterMapping[parameter_info.raw] = { mqtt_device, mqtt_channel };
+
             }
 
-            #undef REQUIRE
+            if (mapping.isMember("output")) {
+                auto output = REQUIRE(mapping, output);
+                auto channel_id = REQUIRE(output, channel_id).asUInt();
 
-            Info.Log() << "Map parameter";
-            Info.Log() << "\t program_type " << (int)parameter_info.program_type;
-            Info.Log() << "\t parameter_id " << (int)parameter_info.parameter_id;
-            Info.Log() << "\t parameter_index " << (int)parameter_info.index;
-            Info.Log() << "\t raw " << (int)parameter_info.raw;
+                if (channel_id > 31) {
+                    throw TDriverError("channel_id should be in [0, 31] space");
+                }
 
-            DriverState.Mapping[parameter_info.raw] = { mqtt_device, mqtt_channel };
+                Info.Log() << "Map output {"
+                        << "channel_id: " << (int)channel_id
+                        << "} to {device: " << mqtt_device << ", "
+                        << "channel: " << mqtt_channel << "};";
+
+                auto & channel = DriverState.OutputMapping[channel_id];
+
+                channel.device = move(mqtt_device);
+                channel.control = move(mqtt_channel);
+            }
+
+            if (
+                !mapping.isMember("parameter") &&
+                !mapping.isMember("sensor") &&
+                !mapping.isMember("output")
+            ) {
+                throw runtime_error("Malformed JSON config: no parameter, sensor or output in mapping");
+            }
         }
+
+        #undef REQUIRE
     }
 
     Debug.SetEnabled(false);
@@ -298,10 +375,7 @@ int main(int argc, char *argv[])
 
     auto fd = connect_can(ifname);
 
-    auto get_response_frame = [&](TFrame frame) {
-        SmartWeb::TCanHeader header;
-        header.raw = frame.can_id;
-
+    auto get_response_frame = [&](SmartWeb::TCanHeader header) {
         if (header.rec.message_type != SmartWeb::MT_MSG_REQUEST) {
             throw TFrameError("Frame error: response to NOT request frame");
         }
@@ -312,14 +386,63 @@ int main(int argc, char *argv[])
 
         header.rec.message_type = SmartWeb::MT_MSG_RESPONSE;
 
-        frame.can_id = header.raw;
-        return frame;
+        TFrame response {0};
+        response.can_id = header.raw;
+
+        return response;
+    };
+
+    auto is_for_me = [&](const SmartWeb::TCanHeader & header, const TFrameData & data) {
+
+        if (header.rec.program_id == program_id) {
+            return true;
+        } else if (
+            header.rec.message_type == SmartWeb::MT_MSG_REQUEST &&
+            header.rec.program_type == SmartWeb::PT_CONTROLLER &&
+            header.rec.function_id == SmartWeb::Controller::Function::GET_OUTPUT_VALUE
+        ) {
+            SmartWeb::TMappingPoint mapping_point;
+            memcpy(&mapping_point.raw, data, 2);
+            return mapping_point.hostID == program_id;
+        }
+
+        return false;
     };
 
     auto postpone_i_am_here = [&]{ DriverState.SendIAmHereTime = now() + KEEP_ALIVE_INTERVAL_S; };
     auto postpone_connection_reset = [&]{ DriverState.ResetConnectionTime = now() + CONNECTION_TIMEOUT_MIN; };
 
-    auto i_am_here = [&](){
+    auto send_frame = [&](TFrame & frame) {
+        frame.can_id |= CAN_EFF_FLAG;   // just in case
+        auto nbytes = write(fd, &frame, CAN_MTU);
+
+        if (nbytes < static_cast<int>(CAN_MTU)) {
+            Error.Log() << "write error: " << strerror(errno);
+        } else {
+            LocalDebug.Log() << "--------write " << nbytes << " bytes--------";
+        }
+        print_frame(frame);
+    };
+
+    auto read_mqtt_value = [&](const string & device_id, const string & control_id) {
+        try {
+            auto tx = mqtt_driver->BeginTx();
+            auto control = tx->GetDevice(device_id)->GetControl(control_id);
+
+            if (control->GetError().empty()) {
+                return SmartWeb::SensorData::FromDouble(control->GetValue().As<double>());
+            } else {
+                Info.Log() << "Unable to read mqtt value because of error on channel " << control_id << " of device " << device_id << ": " << control->GetError();
+                return SmartWeb::SENSOR_UNDEFINED;
+            }
+        } catch (const WBMQTT::TBaseException & e) {
+            Warn.Log() << "Unable to read mqtt value: " << e.what();
+
+            return SmartWeb::SENSOR_UNDEFINED;
+        }
+    };
+
+    auto i_am_here = [&]{
         postpone_i_am_here();
 
         LocalDebug.Log() << "Send I_AM_HERE";
@@ -337,19 +460,22 @@ int main(int argc, char *argv[])
         frame.can_dlc = 1;
         frame.data[0] = CONTROLLER_TYPE;
 
-        return frame;
+        send_frame(frame);
     };
 
-    auto get_channel_number = [&](TFrame & response){
+    auto get_channel_number = [&](const SmartWeb::TCanHeader & header){
         LocalDebug.Log() << "Send channel number";
 
-        auto channel_number = DriverState.Mapping.size();
+        auto channel_number = DriverState.ParameterMapping.size();
+
+        auto response = get_response_frame(header);
         response.can_dlc = 2;
         response.data[0] = 0xFF & channel_number;
         response.data[1] = 0xFF & channel_number >> 8;
+        send_frame(response);
     };
 
-    auto get_parameter_value = [&](TFrame & response, const TFrameData & data){
+    auto get_parameter_value = [&](const SmartWeb::TCanHeader & header, const TFrameData & data){
         SmartWeb::TParameterData parameter_data {0};
 
         memcpy(&parameter_data.raw, data, 4);
@@ -364,20 +490,20 @@ int main(int argc, char *argv[])
             throw TUnsupportedError("Unsupported program type " + to_string((int)parameter_data.program_type) + " for GET_PARAMETER_VALUE");
         }
 
-        const auto & itDeviceChannel = DriverState.Mapping.find(parameter_data.raw_info);
+        const auto & itDeviceChannel = DriverState.ParameterMapping.find(parameter_data.raw_info);
 
         int16_t value = SmartWeb::SENSOR_UNDEFINED;
 
-        if (itDeviceChannel == DriverState.Mapping.end()) {
+        if (itDeviceChannel == DriverState.ParameterMapping.end()) {
             Warn.Log() << "Unmapped parameter: "
                 "\n\t program_type: "  << (int)parameter_data.program_type <<
                 "\n\t parameter_id: " << (int)parameter_data.parameter_id <<
                 "\n\t parameter_index: " << (int)parameter_data.indexed_parameter.index;
         } else {
-            value = SmartWeb::SensorData::FromDouble(
-                mqtt_driver->BeginTx()->GetDevice(itDeviceChannel->second.device)->GetControl(itDeviceChannel->second.channel)->GetValue().As<double>()
-            );
+            value = read_mqtt_value(itDeviceChannel->second.device, itDeviceChannel->second.control);
         }
+
+        auto response = get_response_frame(header);
 
         response.can_dlc = 5;
 
@@ -387,37 +513,111 @@ int main(int argc, char *argv[])
 
         memcpy(response.data, &parameter_data.raw, 5);
 
+        send_frame(response);
+
         Info.Log() << " Parameter {type: " << (int)parameter_data.program_type
                              << ", id: " << (int)parameter_data.parameter_id
                              << ", index: " << (int)parameter_data.indexed_parameter.index
                              << "} <== " << SmartWeb::SensorData::ToDouble(value);
     };
 
-    auto get_controller_type = [&](TFrame & response){
-        LocalDebug.Log() << "Send controller type";
+    auto get_output_value = [&](const SmartWeb::TCanHeader & header, const TFrameData & data){
+        SmartWeb::TMappingPoint mapping_point {};
+        memcpy(mapping_point.rawID, data, 2);
 
-        response.can_dlc = 1;
-        response.data[0] = CONTROLLER_TYPE;
+        if (mapping_point.hostID != program_id) {
+            throw TFrameError("hostID of mapping point does not match with driver program_id");
+        }
+
+        // if (mapping_point.type != SmartWeb::TMappingPoint::CHANNEL_SENSOR_LOCAL) {
+        //     throw TUnsupportedError("mapping point type " + to_string(mapping_point.type) + " is unsupported");
+        // }
+
+        auto channel_id = mapping_point.channelID;
+        if (channel_id >= CONTROLLER_OUTPUT_MAX) {
+            throw TFrameError("channel_id of mapping point is out of bounds: " + to_string(channel_id));
+        }
+
+        auto & channel = DriverState.OutputMapping[channel_id];
+
+        if (channel.is_initialized()) {
+            channel.schedule_to_send(mapping_point);
+            Info.Log() << "Scheduled output " << (int)channel_id;
+        } else {
+            Warn.Log() << "Unmapped output " << (int)channel_id;
+        }
     };
 
-    auto handle_request = [&](TFrame & response, const SmartWeb::TCanHeader & header, const TFrameData & data) {
+    auto send_scheduled_outputs = [&]{
+        SmartWeb::TCanHeader header;
+        header.rec.program_type = SmartWeb::PT_CONTROLLER;
+        header.rec.program_id   = program_id;
+        header.rec.function_id  = SmartWeb::Controller::Function::GET_OUTPUT_VALUE;
+        header.rec.message_format = SmartWeb::MF_FORMAT_0;
+        header.rec.message_type = SmartWeb::MT_MSG_RESPONSE;
+
+        TFrame frame {0};
+
+        frame.can_dlc = 4;
+
+        for (uint8_t channel_id = 0; channel_id < CONTROLLER_OUTPUT_MAX; ++channel_id) {
+             auto & channel = DriverState.OutputMapping[channel_id];
+
+            if (channel.SendEndTimePoint < now()) {
+                continue;   // too late
+            }
+
+            if (channel.SendTimePoint > now()) {
+                continue;   // too soon
+            }
+
+            if (channel.device.empty() || channel.control.empty()) {
+                continue;   // weird
+            }
+
+            auto value = read_mqtt_value(channel.device, channel.control);
+
+            frame.can_id = header.raw | CAN_EFF_FLAG;
+            memcpy(frame.data, &channel.mapping_point.raw, sizeof channel.mapping_point.raw);
+            frame.data[2] = 0xFF & value >> 8;
+            frame.data[3] = 0xFF & value;
+
+            send_frame(frame);
+
+            Info.Log() << "Output {channel_id: " << (int)channel_id << "} <== " << SmartWeb::SensorData::ToDouble(value);
+
+            channel.postpone_send();
+        }
+    };
+
+    auto get_controller_type = [&](const SmartWeb::TCanHeader & header){
+        LocalDebug.Log() << "Send controller type";
+
+        auto response = get_response_frame(header);
+        response.can_dlc = 1;
+        response.data[0] = CONTROLLER_TYPE;
+        send_frame(response);
+    };
+
+    auto handle_request = [&](const SmartWeb::TCanHeader & header, const TFrameData & data) {
         switch (header.rec.program_type) {
             case SmartWeb::PT_CONTROLLER:
                 switch (header.rec.function_id) {
                     case SmartWeb::Controller::Function::GET_CHANNEL_NUMBER:
-                        return get_channel_number(response);
+                        return get_channel_number(header);
                     case SmartWeb::Controller::Function::GET_CONTROLLER_TYPE:
-                        return get_controller_type(response);
+                        return get_controller_type(header);
+                    case SmartWeb::Controller::Function::GET_OUTPUT_VALUE:
+                        return get_output_value(header, data);
                     case SmartWeb::Controller::Function::I_AM_HERE:
-                        response = i_am_here();
-                        return;
+                        return i_am_here();
                     default:
                         throw TUnsupportedError("function id " + to_string((int)header.rec.function_id) + " is unsupported");
                 }
             case SmartWeb::PT_REMOTE_CONTROL:
                 switch (header.rec.function_id) {
                     case SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE:
-                        return get_parameter_value(response, data);
+                        return get_parameter_value(header, data);
                     default:
                         throw TUnsupportedError("function id " + to_string((int)header.rec.function_id) + " is unsupported");
                 }
@@ -463,52 +663,41 @@ int main(int argc, char *argv[])
 
         header.raw = frame.can_id;
 
-        if (header.rec.program_id == program_id) {
+        bool frame_for_me = is_for_me(header, frame.data);
+
+        if (frame_for_me) {
             LocalDebug.Log() << "--------read " << nbytes << " bytes----------";
             print_frame(frame);
         }
 
         try {
-            TFrame response_frame {0};
             switch (DriverState.Status) {
                 case DS_IDLE:
-                    if (header.rec.program_id == program_id) {
+                    if (frame_for_me) {
                         DriverState.Status = DS_RUNNING;
                         Info.Log() << "CONNECTION ESTABILISHED. RUNNING";
                     } else {
                         if (DriverState.SendIAmHereTime <= now()) {
-                            response_frame = i_am_here();
+                            i_am_here();
                             break;
                         }
                         continue;
                     }
 
                 case DS_RUNNING:
-                    if (header.rec.program_id == program_id) {
+                    if (frame_for_me) {
                         postpone_connection_reset();
                     } else {
+                        send_scheduled_outputs();
                         continue;
                     }
 
-                    try {
-                        response_frame = get_response_frame(frame);
-                    } catch (const TFrameError &) {
-                        continue;
-                    }
+                    handle_request(header, frame.data);
 
-                    handle_request(response_frame, header, frame.data);
+                    send_scheduled_outputs();
+
                     break;
             }
-
-            // response_frame.can_id |= CAN_EFF_FLAG;
-            nbytes = write(fd, &response_frame, CAN_MTU);
-
-            if (nbytes < static_cast<int>(CAN_MTU)) {
-                Error.Log() << "write error: " << strerror(errno);
-            } else {
-                LocalDebug.Log() << "--------write " << nbytes << " bytes--------";
-            }
-            print_frame(response_frame);
 
         } catch (const TDriverError & e) {
             Warn.Log() << e.what();
