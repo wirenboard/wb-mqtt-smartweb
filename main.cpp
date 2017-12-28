@@ -463,6 +463,12 @@ int main(int argc, char *argv[])
         send_frame(frame);
     };
 
+    auto send_scheduled_i_am_here = [&]{
+        if (DriverState.SendIAmHereTime <= now()) {
+            i_am_here();
+        }
+    };
+
     auto get_channel_number = [&](const SmartWeb::TCanHeader & header){
         LocalDebug.Log() << "Send channel number";
 
@@ -677,24 +683,18 @@ int main(int argc, char *argv[])
                         DriverState.Status = DS_RUNNING;
                         Info.Log() << "CONNECTION ESTABILISHED. RUNNING";
                     } else {
-                        if (DriverState.SendIAmHereTime <= now()) {
-                            i_am_here();
-                            break;
-                        }
-                        continue;
+                        send_scheduled_i_am_here();
+                        break;
                     }
 
                 case DS_RUNNING:
                     if (frame_for_me) {
                         postpone_connection_reset();
-                    } else {
-                        send_scheduled_outputs();
-                        continue;
+                        handle_request(header, frame.data);
                     }
 
-                    handle_request(header, frame.data);
-
                     send_scheduled_outputs();
+                    send_scheduled_i_am_here();
 
                     break;
             }
