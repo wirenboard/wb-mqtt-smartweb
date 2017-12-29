@@ -17,7 +17,7 @@ ifneq ($(CC_PATH),)
 endif
 
 CXXFLAGS= -std=c++11 -Wall
-LDFLAGS= -ljsoncpp -lwbmqtt
+LDFLAGS= -ljsoncpp -l:libwbmqtt.a -lmosquittopp -lmosquitto -ldb_cxx
 
 SRC:=main.cpp
 
@@ -35,3 +35,14 @@ $(BIN): $(OBJ)
 clean:
 	rm -f $(OBJ)
 	rm -f $(BIN)
+
+install: all
+	mkdir -p $(DESTDIR)/usr/share/wb-mqtt-confed/schemas
+
+	install -d $(DESTDIR)
+	install -d $(DESTDIR)/etc
+	install -d $(DESTDIR)/usr/bin
+
+	install -m 0644  wb-mqtt-smartweb.schema.json $(DESTDIR)/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb.schema.json
+	install -m 0644  config.json $(DESTDIR)/etc/wb-mqtt-smartweb.conf.sample
+	install -m 0755  $(BIN) $(DESTDIR)/usr/bin/$(BIN)
