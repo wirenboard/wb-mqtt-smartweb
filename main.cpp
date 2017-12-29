@@ -101,6 +101,7 @@ struct
     TTimePoint                                  ResetConnectionTime;
     unordered_map<uint32_t, TMqttChannel>       ParameterMapping;
     TBroadcastChannel                           OutputMapping[CONTROLLER_OUTPUT_MAX];
+    uint8_t                                     ParameterCount = 0;
 } DriverState;
 
 TLogger::TOutput logger_stdout {std::cout};
@@ -312,6 +313,7 @@ int main(int argc, char *argv[])
 
                 DriverState.ParameterMapping[parameter_info.raw] = { mqtt_device, mqtt_control };
 
+                DriverState.ParameterCount = max(DriverState.ParameterCount, uint8_t(parameter_info.index + 1));
             }
 
             if (mapping.isMember("output")) {
@@ -472,7 +474,7 @@ int main(int argc, char *argv[])
     auto get_channel_number = [&](const SmartWeb::TCanHeader & header){
         LocalDebug.Log() << "Send channel number";
 
-        auto channel_number = DriverState.ParameterMapping.size();
+        auto channel_number = max((size_t)DriverState.ParameterCount, DriverState.ParameterMapping.size());
 
         auto response = get_response_frame(header);
         response.can_dlc = 2;
