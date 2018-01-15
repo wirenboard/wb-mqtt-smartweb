@@ -429,12 +429,20 @@ int main(int argc, char *argv[])
     auto read_mqtt_value = [&](const string & device_id, const string & control_id) {
         try {
             auto tx = mqtt_driver->BeginTx();
-            auto control = tx->GetDevice(device_id)->GetControl(control_id);
-
-            if (control->GetError().empty()) {
-                return SmartWeb::SensorData::FromDouble(control->GetValue().As<double>());
+            if (auto device = tx->GetDevice(device_id)) {
+                if (auto control = device->GetControl(control_id)) {
+                    if (control->GetError().empty()) {
+                        return SmartWeb::SensorData::FromDouble(control->GetValue().As<double>());
+                    } else {
+                        Warn.Log() << "Unable to read mqtt value because of error on control " << control_id << " of device " << device_id << ": " << control->GetError();
+                        return SmartWeb::SENSOR_UNDEFINED;
+                    }
+                } else {
+                    Warn.Log() << "Unable to read mqtt value because control " << control_id << " of device " << device_id << " does not exist";
+                    return SmartWeb::SENSOR_UNDEFINED;
+                }
             } else {
-                Info.Log() << "Unable to read mqtt value because of error on control " << control_id << " of device " << device_id << ": " << control->GetError();
+                Warn.Log() << "Unable to read mqtt value because device " << device_id << " does not exist";
                 return SmartWeb::SENSOR_UNDEFINED;
             }
         } catch (const WBMQTT::TBaseException & e) {

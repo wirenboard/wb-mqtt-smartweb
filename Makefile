@@ -16,7 +16,7 @@ ifneq ($(CC_PATH),)
 	CC=$(CROSS_COMPILE)gcc-4.7
 endif
 
-CXXFLAGS= -std=c++11 -Wall
+CXXFLAGS= -std=c++11 -Wall -ggdb
 LDFLAGS= -ljsoncpp -l:libwbmqtt.a -lmosquittopp -lmosquitto -ldb_cxx
 
 SRC:=main.cpp

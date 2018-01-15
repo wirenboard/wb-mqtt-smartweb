@@ -1,3 +1,9 @@
+wb-mqtt-smartweb (0.1.2) unstable; urgency=medium
+
+  * handle not existing MQTT devices and controls (fix segfault)
+
+ -- Islam Boziev <i.boziev@wirenboard.ru>  Mon, 15 Jan 2018 21:06:08 +0300
+
 wb-mqtt-smartweb (0.1.1) unstable; urgency=medium
 
   * sensor count by max index
