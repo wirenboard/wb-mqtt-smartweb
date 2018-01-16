@@ -9,7 +9,7 @@
 # Description:       MQTT to SmartWeb bridge driver
 ### END INIT INFO
 
-# Author: ISlam Boziev <i.boziev@wirenboard.ru>
+# Author: Islam Boziev <i.boziev@wirenboard.ru>
 #
 # Please remove the "Author" lines above and replace them
 # with your own name if you copy and modify this script.
