@@ -1,3 +1,10 @@
+wb-mqtt-smartweb (0.2) unstable; urgency=medium
+
+  * added option "value_timeout_min" MQTT channel value timeout. Defaults to -1 (disabled timeout).
+  * MQTT channel name format changed: "channel" instead of "device" and "control"; "channel" format is <device_id>/<control_id>
+
+ -- Islam Boziev <i.boziev@wirenboard.ru>  Wed, 17 Jan 2018 15:12:25 +0300
+
 wb-mqtt-smartweb (0.1.2) unstable; urgency=medium
 
   * handle not existing MQTT devices and controls (fix segfault)

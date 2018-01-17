@@ -3,8 +3,7 @@
     "mappings": [
         {
             "mqtt": {
-                "device": "wb-adc",
-                "control": "Vin"
+                "channel": "wb-adc/Vin"
             },
             "parameter": {
                 "parameter_id": 1,
@@ -14,8 +13,8 @@
         },
         {
             "mqtt": {
-                "device": "wb-adc",
-                "control": "R1"
+                "channel": "wb-adc/R1",
+                "value_timeout_min": 60
             },
             "sensor": {
                 "index": 1

@@ -7,22 +7,22 @@
       "mqtt": {
         "type": "object",
         "title": "MQTT",
-        "headerTemplate": "{{self.device}}/{{self.control}}",
+        "headerTemplate": "{{self.channel}}",
         "properties": {
-          "device": {
+          "channel": {
             "type": "string",
-            "title": "Device Id",
-            "minLength": 1,
+            "title": "Device Id/Control Id",
+            "minLength": 3,
             "propertyOrder": 1
           },
-          "control": {
-            "type": "string",
-            "title": "Control Id",
-            "minLength": 1,
+          "value_timeout_min": {
+            "type": "integer",
+            "title": "Value timeout (minutes)",
+            "default": -1,
             "propertyOrder": 2
           }
         },
-        "required": ["device", "control"]
+        "required": ["channel"]
       },
       "sensor": {
         "type": "object",

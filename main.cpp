@@ -35,9 +35,9 @@ using TTimeIntervalMin = chrono::minutes;
 using TFrame     = struct can_frame;
 using TFrameData = decltype(TFrame::data);
 
-const auto    DRIVER_NAME       = "wb-mqtt-smartweb";
-const auto    LIBWBMQTT_DB_FILE = "/tmp/libwbmqtt.db";
-const uint8_t CONTROLLER_TYPE   = 0x3;    // SWX for now
+const auto    DRIVER_NAME           = "wb-mqtt-smartweb";
+const auto    LIBWBMQTT_DB_FILE     = "/tmp/libwbmqtt.db";
+const uint8_t CONTROLLER_TYPE       = 0x3;    // SWX for now
 const uint8_t CONTROLLER_OUTPUT_MAX = 32;
 
 const auto KEEP_ALIVE_INTERVAL_S     = TTimeIntervalS(10);     // if nothing else to do - each 10 seconds send I_AM_HERE
@@ -56,9 +56,36 @@ enum EDriverStatus
 struct TMqttChannel
 {
     string device, control;
+
+    void from_string(const string & deviceControl)
+    {
+        auto delimiter_position = deviceControl.find('/');
+
+        if (delimiter_position == string::npos) {
+            throw TDriverError("unable to determine device id and control id from string '" + deviceControl + "'");
+        }
+
+        device = deviceControl.substr(0, delimiter_position);
+        control = deviceControl.substr(delimiter_position + 1);
+
+        if (device.empty() || control.empty()) {
+            throw TDriverError("unable to determine device id or control id from string '" + deviceControl + "'");
+        }
+    }
+
     bool is_initialized() const
     {
         return !device.empty() || !control.empty();
+    }
+
+    static string to_string(const string & device, const string & control)
+    {
+        return device + "/" + control;
+    }
+
+    string to_string() const
+    {
+        return to_string(device, control);
     }
 };
 
@@ -94,12 +121,49 @@ struct TBroadcastChannel: TMqttChannel, TChannelState
     }
 };
 
+struct TMqttChannelTiming
+{
+private:
+    TTimePoint          LastUpdateTimePoint;
+    mutable mutex       LastUpdateTimePointMutex;
+
+public:
+    TTimeIntervalMin    ValueTimeoutMin = TTimeIntervalMin(-1);
+
+    TMqttChannelTiming() = default;
+
+    TMqttChannelTiming(const TMqttChannelTiming & other)
+        : LastUpdateTimePointMutex()
+        , ValueTimeoutMin(other.ValueTimeoutMin)
+    {
+        unique_lock<mutex> lock(other.LastUpdateTimePointMutex);
+        LastUpdateTimePoint = other.LastUpdateTimePoint;
+    }
+
+    void refresh_last_update_timepoint()
+    {
+        unique_lock<mutex> lock(LastUpdateTimePointMutex);
+        LastUpdateTimePoint = now();
+    }
+
+    bool is_timed_out() const
+    {
+        if (ValueTimeoutMin.count() < 0) {
+            return false;
+        }
+
+        unique_lock<mutex> lock(LastUpdateTimePointMutex);
+        return (now() - LastUpdateTimePoint) > ValueTimeoutMin;
+    }
+};
+
 struct
 {
     EDriverStatus                               Status = DS_IDLE;
     TTimePoint                                  SendIAmHereTime;
     TTimePoint                                  ResetConnectionTime;
     unordered_map<uint32_t, TMqttChannel>       ParameterMapping;
+    unordered_map<string, TMqttChannelTiming>   MqttChannelsTiming;
     TBroadcastChannel                           OutputMapping[CONTROLLER_OUTPUT_MAX];
     uint8_t                                     ParameterCount = 0;
 } DriverState;
@@ -281,8 +345,15 @@ int main(int argc, char *argv[])
             auto mapping = mappings[i];
 
             const auto & mqtt = REQUIRE(mapping, mqtt);
-            const auto & mqtt_device = REQUIRE(mqtt, device).asString();
-            const auto & mqtt_control = REQUIRE(mqtt, control).asString();
+            const auto & mqtt_channel = REQUIRE(mqtt, channel).asString();
+
+            {
+                auto & mqtt_channel_timing = DriverState.MqttChannelsTiming[mqtt_channel];
+                mqtt_channel_timing.refresh_last_update_timepoint();
+                if (mqtt.isMember("value_timeout_min")) {
+                    mqtt_channel_timing.ValueTimeoutMin = TTimeIntervalMin(mqtt["value_timeout_min"].asInt());
+                }
+            }
 
             if (mapping.isMember("parameter") || mapping.isMember("sensor")) {
                 SmartWeb::TParameterInfo parameter_info {0};
@@ -304,14 +375,13 @@ int main(int argc, char *argv[])
                         << "parameter_id: " << (int)parameter_info.parameter_id << ", "
                         << "parameter_index: " << (int)parameter_info.index << ", "
                         << "raw " << (int)parameter_info.raw
-                        << "} to {device: " << mqtt_device << ", "
-                        << "control: " << mqtt_control << "};";
+                        << "} to {channel: " << mqtt_channel << "};";
 
                 if (DriverState.ParameterMapping.count(parameter_info.raw)) {
                     throw runtime_error("Malformed JSON config: parameter duplicate");
                 }
 
-                DriverState.ParameterMapping[parameter_info.raw] = { mqtt_device, mqtt_control };
+                DriverState.ParameterMapping[parameter_info.raw].from_string(mqtt_channel);
 
                 DriverState.ParameterCount = max(DriverState.ParameterCount, uint8_t(parameter_info.index + 1));
             }
@@ -326,13 +396,13 @@ int main(int argc, char *argv[])
 
                 Info.Log() << "Map output {"
                         << "channel_id: " << (int)channel_id
-                        << "} to {device: " << mqtt_device << ", "
-                        << "control: " << mqtt_control << "};";
+                        << "} to {channel: " << mqtt_channel << "};";
 
-                auto & channel = DriverState.OutputMapping[channel_id];
+                if (DriverState.OutputMapping[channel_id].is_initialized()) {
+                    throw runtime_error("Malformed JSON config: output duplicate");
+                }
 
-                channel.device = move(mqtt_device);
-                channel.control = move(mqtt_control);
+                DriverState.OutputMapping[channel_id].from_string(mqtt_channel);
             }
 
             if (
@@ -374,6 +444,14 @@ int main(int argc, char *argv[])
     mqtt_driver->StartLoop();
     mqtt_driver->WaitForReady();
     mqtt_driver->SetFilter(GetAllDevicesFilter());
+
+    mqtt_driver->On<TControlValueEvent>([&](const TControlValueEvent & event){
+        auto deviceControl = TMqttChannel::to_string(event.Control->GetDevice()->GetId(), event.Control->GetId());
+        try {
+            DriverState.MqttChannelsTiming.at(deviceControl).refresh_last_update_timepoint();
+        }
+        catch (out_of_range &) {}
+    });
 
     auto fd = connect_can(ifname);
 
@@ -427,6 +505,17 @@ int main(int argc, char *argv[])
     };
 
     auto read_mqtt_value = [&](const string & device_id, const string & control_id) {
+        try {
+            const auto & mqtt_channel_timing = DriverState.MqttChannelsTiming.at(TMqttChannel::to_string(device_id, control_id));
+            if (mqtt_channel_timing.is_timed_out()) {
+                Warn.Log() << "MQTT value of control " << control_id << " of device " << device_id << " timed out. Returning undefined value";
+                return SmartWeb::SENSOR_UNDEFINED;
+            }
+        } catch (out_of_range &) {
+            // Should never happen. Means that we did not add all mqtt channels to DriverState.MqttChannelsTiming at startup as we should've.
+            Error.Log() << "[error code 1] There is bug in code; Report error code to driver maintainer";
+        }
+
         try {
             auto tx = mqtt_driver->BeginTx();
             if (auto device = tx->GetDevice(device_id)) {
