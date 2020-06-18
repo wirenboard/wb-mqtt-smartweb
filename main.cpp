@@ -1,7 +1,9 @@
 #include "smart_web_conventions.h"
 #include "exceptions.h"
 
-#include <wbmqtt/wbmqtt.h>
+#include <wblib/log.h>
+#include <wblib/signal_handling.h>
+#include <wblib/wbmqtt.h>
 
 #if defined(__APPLE__) || defined(__APPLE_CC__)
 #   include <json/json.h>
@@ -316,7 +318,7 @@ int main(int argc, char *argv[])
 
             Json::Reader reader;
             if(!reader.parse(config_file, config, false)) {
-                throw runtime_error("Failed to parse JSON: " + reader.getFormatedErrorMessages());
+                throw runtime_error("Failed to parse JSON: " + reader.getFormattedErrorMessages());
             }
         }
 
