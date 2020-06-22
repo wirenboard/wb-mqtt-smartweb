@@ -1,3 +1,9 @@
+wb-mqtt-smartweb (0.2.1) unstable; urgency=medium
+
+  * build with newer (pre-release) libwbmqtt1.so
+
+ -- Evgeny Boger <boger@contactless.ru>  Thu, 18 Jun 2020 20:33:11 +0300
+
 wb-mqtt-smartweb (0.2) unstable; urgency=medium
 
   * added option "value_timeout_min" MQTT channel value timeout. Defaults to -1 (disabled timeout).
