@@ -7,5 +7,5 @@ Build-Depends: debhelper (>= 9), pkg-config, g++, libjsoncpp-dev, libmosquittopp
 
 Package: wb-mqtt-smartweb
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libjsoncpp0 | libjsoncpp1, libmosquittopp1, libmosquitto1, bsdutils, libdb5.1++ | libdb5.3++, libwbmqtt1
+Depends: ${shlibs:Depends}, ${misc:Depends}, libjsoncpp0 | libjsoncpp1, bsdutils, libwbmqtt1
 Description: Wiren Board MQTT SmartWeb driver.

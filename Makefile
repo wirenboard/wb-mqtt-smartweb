@@ -44,5 +44,5 @@ install: all
 	install -d $(DESTDIR)/usr/bin
 
 	install -m 0644  wb-mqtt-smartweb.schema.json $(DESTDIR)/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb.schema.json
-	install -m 0644  config.json $(DESTDIR)/etc/wb-mqtt-smartweb.conf.sample
+	install -m 0644  config.json $(DESTDIR)/etc/wb-mqtt-smartweb.conf
 	install -m 0755  $(BIN) $(DESTDIR)/usr/bin/$(BIN)
