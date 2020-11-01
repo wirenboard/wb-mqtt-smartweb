@@ -1,19 +1,12 @@
-ifeq ($(DEB_TARGET_ARCH),armel)
-CROSS_COMPILE=arm-linux-gnueabi-
+ifneq ($(DEB_HOST_MULTIARCH),)
+	CROSS_COMPILE ?= $(DEB_HOST_MULTIARCH)-
 endif
 
-CXX=$(CROSS_COMPILE)g++
-CXX_PATH := $(shell which $(CROSS_COMPILE)g++-4.7)
-
-CC=$(CROSS_COMPILE)gcc
-CC_PATH := $(shell which $(CROSS_COMPILE)gcc-4.7)
-
-ifneq ($(CXX_PATH),)
-	CXX=$(CROSS_COMPILE)g++-4.7
+ifeq ($(origin CC),default)
+	CC := $(CROSS_COMPILE)gcc
 endif
-
-ifneq ($(CC_PATH),)
-	CC=$(CROSS_COMPILE)gcc-4.7
+ifeq ($(origin CXX),default)
+	CXX := $(CROSS_COMPILE)g++
 endif
 
 CXXFLAGS= -std=c++11 -Wall -ggdb
