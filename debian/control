@@ -3,9 +3,20 @@ Maintainer: Islam Boziev <i.boziev@wirenboard.ru>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 9), pkg-config, g++, libjsoncpp-dev, libmosquittopp1, libmosquitto1, libwbmqtt1-dev
+Build-Depends: debhelper (>= 9),
+    pkg-config,
+    libjsoncpp-dev,
+    libmosquittopp1, libmosquitto1,
+    libmosquittopp-dev, libmosquitto-dev,
+    libdb5.3++-dev,
+    libwbmqtt1-dev
 
 Package: wb-mqtt-smartweb
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libjsoncpp0 | libjsoncpp1, bsdutils, libwbmqtt1
+Depends: ${shlibs:Depends}, ${misc:Depends},
+    libjsoncpp0 | libjsoncpp1,
+    bsdutils,
+    libmosquittopp1, libmosquitto1,
+    libdb5.3++,
+    libwbmqtt1
 Description: Wiren Board MQTT SmartWeb driver.
