@@ -2,7 +2,6 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "title": "SmartWeb Driver Configuration",
-    "description": "Exposes Wirenboard periphery to SmartWeb CAN network",
     "definitions": {
       "mqtt": {
         "type": "object",
@@ -61,15 +60,29 @@
         "properties": {
           "mqtt": {
             "propertyOrder": 1,
-            "$ref": "#/definitions/mqtt"
+            "$ref": "#/definitions/mqtt",
+            "options": {
+              "disable_edit_json": true,
+              "disable_collapse": true
+          }
           },
           "sensor": {
             "propertyOrder": 2,
-            "$ref": "#/definitions/sensor"
+            "$ref": "#/definitions/sensor",
+            "options": {
+                "disable_edit_json": true,
+                "disable_collapse": true,
+                "disable_properties": true
+            }
           },
           "output": {
             "propertyOrder": 3,
-            "$ref": "#/definitions/output"
+            "$ref": "#/definitions/output",
+            "options": {
+                "disable_edit_json": true,
+                "disable_collapse": true,
+                "disable_properties": true
+            }
           }
         },
         "required": ["mqtt"],
@@ -77,25 +90,42 @@
       }
     },
     "properties": {
+      "debug": {
+        "type": "boolean",
+        "title": "Enable debug logging",
+        "default": false,
+        "_format": "checkbox",
+        "propertyOrder": 1
+      },
+      "poll_interval_ms": {
+        "type": "integer",
+        "title": "Polling interval of SmartWeb programs, ms",
+        "default": 1000,
+        "minimum": 1,
+        "propertyOrder": 2
+      },
       "controller_id": {
         "type": "integer",
         "title": "SmartWeb controller id",
         "default": 0,
         "minimum": 1,
         "maximum": 255,
-        "propertyOrder": 1
+        "propertyOrder": 3
       },
       "mappings": {
         "type": "array",
-        "title": "Mappings",
-        "description": "Wirenboard <--> SmartWeb mappings",
+        "title": "Wirenboard to SmartWeb mappings",
         "items": { "$ref": "#/definitions/mapping" },
         "minItems": 1,
         "_format": "table",
-        "propertyOrder": 2
+        "propertyOrder": 4
       }
     },
     "required": ["controller_id", "mappings"],
+    "defaultProperties" : ["poll_interval_ms", "controller_id", "mappings"],
+    "options": {
+      "disable_collapse": true
+    },
     "configFile": {
       "path": "/etc/wb-mqtt-smartweb.conf",
       "service": "wb-mqtt-smartweb"

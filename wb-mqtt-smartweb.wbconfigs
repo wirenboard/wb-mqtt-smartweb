@@ -1,0 +1,2 @@
+wb_move /etc/wb-mqtt-smartweb.conf
+wb_move /etc/wb-mqtt-smartweb.conf.d

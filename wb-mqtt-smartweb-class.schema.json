@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["id", "type"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["id", "type"]
+    },
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "encoding": {
+          "type": "string",
+          "minLength": 1
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": ["id"]
+    }
+  },
+  "properties": {
+    "class": {
+      "type": "string",
+      "minLength": 1
+    },
+    "programType": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "implements": {
+      "type": "array",
+      "items": { 
+        "type": "string"
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/input" }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/output" }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/parameter" }
+    }
+  },
+  "required": ["class", "programType"]
+}

@@ -1,4 +1,5 @@
 {
+    "poll_interval_ms": 1000,
     "controller_id": 204,
     "mappings": [
         {
