@@ -7,8 +7,7 @@ Build-Depends: debhelper (>= 10),
     pkg-config,
     libjsoncpp-dev,
     libwbmqtt1-dev (>= 1.1.0),
-    libwbmqtt1-test-utils (>= 1.1.0),
-    git
+    libwbmqtt1-test-utils (>= 1.1.0)
 
 Package: wb-mqtt-smartweb
 Architecture: any
