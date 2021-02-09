@@ -37,7 +37,6 @@ Param 18, 18, circuit1Shift, temperature, 32, ROOM_DEVICE, TIntCodec<signed 2, 1
 Param 19, 19, circuit2Shift, temperature, 33, ROOM_DEVICE, TIntCodec<signed 2, 10>
 Param 20, 20, circuit3Shift, temperature, 34, ROOM_DEVICE, TIntCodec<signed 2, 10>
 Param 21, 21, roomOffTemperature, temperature, 35, ROOM_DEVICE, TIntCodec<signed 2, 10>
-Param 22, 22, schedule, value, 36, ROOM_DEVICE, TIntCodec<signed 2, 10>
 Param 23, 23, floorRequiredTemperature, temperature, 37, ROOM_DEVICE, TIntCodec<signed 2, 10>
 Param 24, 24, currentFloorRequiredTemperature, temperature, 38, ROOM_DEVICE, TSensorCodec, read only
 Param 25, 25, wallRequiredTemperature, temperature, 39, ROOM_DEVICE, TIntCodec<signed 2, 10>
@@ -50,4 +49,3 @@ Param 31, 31, ventilationCurcuit, id, 45, ROOM_DEVICE, TIntCodec<unsigned 1>
 Param 32, 32, requiredHumidity, humidity, 46, ROOM_DEVICE, TIntCodec<signed 2, 10>
 Param 33, 33, poolCircuit, id, 47, ROOM_DEVICE, TIntCodec<unsigned 1>
 Param 34, 34, poolTemperatureOffset, temperature, 48, ROOM_DEVICE, TIntCodec<signed 2, 10>
-Param 35, 35, schedule2, value, 49, ROOM_DEVICE, TIntCodec<signed 2, 10>

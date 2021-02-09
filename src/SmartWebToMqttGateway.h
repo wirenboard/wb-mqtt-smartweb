@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <vector>
 #include <type_traits>
+#include <tgmath.h>
 
 #include <wblib/wbmqtt.h>
 
@@ -51,14 +52,16 @@ class ISmartWebCodec
  * @tparam Int integer type
  * @tparam Div value to divide conversion result to
  */
-template<class Int, uint32_t Div> class TIntCodec: public ISmartWebCodec
+template<class Int, uint32_t Div, uint32_t Precision> class TIntCodec: public ISmartWebCodec
 {
     public:
         std::string Decode(const uint8_t* buf) const override
         {
             Int res;
             memcpy(&res, buf, sizeof(Int));
-            return std::to_string(res/double(Div));
+            std::stringstream ss;
+            ss << std::fixed << std::setprecision(Precision) << res/double(Div);
+            return ss.str();
         }
 
         std::vector<uint8_t> Encode(const std::string& value) const override
@@ -84,7 +87,7 @@ template<class Int, uint32_t Div> class TIntCodec: public ISmartWebCodec
  * @tparam Int integer type
  * @tparam Div value to divide conversion result to
  */
-template<class Int> class TIntCodec<Int, 1>: public ISmartWebCodec
+template<class Int> class TIntCodec<Int, 1, 0>: public ISmartWebCodec
 {
     public:
         std::string Decode(const uint8_t* buf) const override

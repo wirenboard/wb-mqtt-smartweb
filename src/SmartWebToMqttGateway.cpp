@@ -76,7 +76,9 @@ std::string TSensorCodec::Decode(const uint8_t* buf) const
     if (v == SENSOR_SHORT_VALUE || v == SENSOR_OPEN_VALUE || v == SENSOR_UNDEFINED) {
         throw std::runtime_error("sensor error " + std::to_string(v));
     }
-    return std::to_string(v/double(10));
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(1) << v/10.0;
+    return ss.str();
 }
 
 std::vector<uint8_t> TSensorCodec::Encode(const std::string& value) const
@@ -102,7 +104,7 @@ std::string TOnOffSensorCodec::Decode(const uint8_t* buf) const
     if (v == SENSOR_UNDEFINED) {
         throw std::runtime_error("sensor is in undefined state");
     }
-    return std::to_string(v/double(10));
+    return std::to_string(v);
 }
 
 std::vector<uint8_t> TOnOffSensorCodec::Encode(const std::string& value) const
@@ -122,7 +124,9 @@ std::string TPwmCodec::Decode(const uint8_t* buf) const
     if (buf[0] == 255) {
         return "100";
     }
-    return std::to_string(buf[0]/2.54);
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << buf[0]/2.54;
+    return ss.str();
 }
 
 std::vector<uint8_t> TPwmCodec::Encode(const std::string& value) const

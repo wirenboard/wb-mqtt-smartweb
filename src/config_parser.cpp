@@ -20,13 +20,17 @@ namespace
     {
         if (data.isMember("encoding")) {
             auto enc = data["encoding"].asString();
-            if (enc == "byte")     return std::make_unique<TIntCodec<int8_t,   1>>();
-            if (enc == "short")    return std::make_unique<TIntCodec<int16_t,  1>>();
-            if (enc == "short10")  return std::make_unique<TIntCodec<int16_t,  10>>();
-            if (enc == "short100") return std::make_unique<TIntCodec<int16_t,  100>>();
-            if (enc == "ushort")   return std::make_unique<TIntCodec<uint16_t, 1>>();
-            if (enc == "uint1K")   return std::make_unique<TIntCodec<uint32_t, 1000>>();
-            if (enc == "uint60K")  return std::make_unique<TIntCodec<uint32_t, 60000>>();
+
+            if (WBMQTT::StringStartsWith(enc, "schedule")) {
+                throw std::runtime_error("Encoding '" + enc + "' is not supported");
+            }
+            if (enc == "byte")     return std::make_unique<TIntCodec<int8_t,   1, 0>>();
+            if (enc == "short")    return std::make_unique<TIntCodec<int16_t,  1, 0>>();
+            if (enc == "short10")  return std::make_unique<TIntCodec<int16_t,  10, 1>>();
+            if (enc == "short100") return std::make_unique<TIntCodec<int16_t,  100, 2>>();
+            if (enc == "ushort")   return std::make_unique<TIntCodec<uint16_t, 1, 0>>();
+            if (enc == "uint1K")   return std::make_unique<TIntCodec<uint32_t, 1000, 3>>();
+            if (enc == "uint60K")  return std::make_unique<TIntCodec<uint32_t, 60000, 6>>();
             if (enc == "ubyte") {
                 if (data.isMember("values")) {
                     std::map<uint8_t, std::string> values;
@@ -36,10 +40,10 @@ namespace
                     }
                     return std::make_unique<TEnumCodec>(values);
                 }
-                return std::make_unique<TIntCodec<uint8_t, 1>>();
+                return std::make_unique<TIntCodec<uint8_t, 1, 0>>();
             }
         }
-        return std::make_unique<TIntCodec<int16_t, 10>>(); // default codec
+        return std::make_unique<TIntCodec<int16_t, 10, 1>>(); // default codec
     }
 
     std::shared_ptr<TSmartWebParameter> LoadParameter(const Json::Value&    param,
@@ -106,22 +110,26 @@ namespace
         uint32_t maxId = 0;
         const auto& ar = data["parameters"];
         for (Json::Value::const_iterator it = ar.begin(); it != ar.end(); ++it) {
-            auto p = LoadParameter(*it, it.name(), programClass, orderBase);
-            p->ReadOnly = false;
-            WBMQTT::JSON::Get((*it), "readOnly", p->ReadOnly);
-            p->Codec = GetCodec(*it);
-            if (p->Type == "onOff") {
-                p->Codec = std::make_unique<TOnOffSensorCodec>();
+            try {
+                auto p = LoadParameter(*it, it.name(), programClass, orderBase);
+                p->ReadOnly = false;
+                WBMQTT::JSON::Get((*it), "readOnly", p->ReadOnly);
+                    p->Codec = GetCodec(*it);
+                if (p->Type == "onOff") {
+                    p->Codec = std::make_unique<TOnOffSensorCodec>();
+                }
+                if (p->Type == "temperature" && p->ReadOnly) {
+                    p->Codec = std::make_unique<TSensorCodec>();
+                }
+                LOG(Debug) << "Parameter '" << p->Name << "', " << p->Type 
+                            << ", id " << p->Id 
+                            << ", " << p->Codec->GetName()
+                            << (p->ReadOnly ? ", read only" : "");
+                programClass->Parameters.insert({p->Id, p});
+                maxId = std::max(maxId, p->Id);
+            } catch (const std::exception& e) {
+                LOG(Warn) << "Parameter '" << it.name() << "' is ignored. " << e.what();
             }
-            if (p->Type == "temperature" && p->ReadOnly) {
-                p->Codec = std::make_unique<TSensorCodec>();
-            }
-            LOG(Debug) << "Parameter '" << p->Name << "', " << p->Type 
-                        << ", id " << p->Id 
-                        << ", " << p->Codec->GetName()
-                        << (p->ReadOnly ? ", read only" : "");
-            programClass->Parameters.insert({p->Id, p});
-            maxId = std::max(maxId, p->Id);
         }
         return orderBase + maxId + 1;
     }

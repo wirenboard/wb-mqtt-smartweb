@@ -38,7 +38,7 @@ TEST_F(TSmartWebToMqttGatewayTest, MakeSetParameterValueRequest)
     param.ProgramClass = &cl;
     param.ReadOnly     = true;
     param.Type         = "temperature";
-    param.Codec        = std::make_unique<TIntCodec<int16_t, 10>>();
+    param.Codec        = std::make_unique<TIntCodec<int16_t, 10, 1>>();
 
     TSmartWebParameterControl pc;
     pc.ProgramId = 10;
@@ -70,7 +70,7 @@ TEST_F(TSmartWebToMqttGatewayTest, AddRequests)
     inp->ProgramClass = &cl;
     inp->ReadOnly     = true;
     inp->Type         = "temperature";
-    inp->Codec        = std::make_unique<TIntCodec<int16_t, 10>>();
+    inp->Codec        = std::make_unique<TIntCodec<int16_t, 10, 1>>();
     cl.Inputs.insert({1, inp});
 
     auto out = std::make_shared<TSmartWebParameter>();
@@ -80,7 +80,7 @@ TEST_F(TSmartWebToMqttGatewayTest, AddRequests)
     out->ProgramClass = &cl;
     out->ReadOnly     = true;
     out->Type         = "PWM";
-    out->Codec        = std::make_unique<TIntCodec<uint8_t, 1>>();
+    out->Codec        = std::make_unique<TIntCodec<uint8_t, 1, 0>>();
     cl.Outputs.insert({2, out});
 
     auto param = std::make_shared<TSmartWebParameter>();
@@ -90,7 +90,7 @@ TEST_F(TSmartWebToMqttGatewayTest, AddRequests)
     param->ProgramClass = &cl;
     param->ReadOnly     = false;
     param->Type         = "humidity";
-    param->Codec        = std::make_unique<TIntCodec<int16_t, 10>>();
+    param->Codec        = std::make_unique<TIntCodec<int16_t, 10, 1>>();
     cl.Parameters.insert({3, param});
 
     auto cl2 = std::make_shared<TSmartWebClass>();
@@ -104,7 +104,7 @@ TEST_F(TSmartWebToMqttGatewayTest, AddRequests)
     param->ProgramClass = cl2.get();
     param->ReadOnly     = true;
     param->Type         = "temperature";
-    param->Codec        = std::make_unique<TIntCodec<uint16_t, 100>>();
+    param->Codec        = std::make_unique<TIntCodec<uint16_t, 100, 2>>();
     cl2->Parameters.insert({4, param});
 
     std::unordered_map<uint8_t, std::shared_ptr<TSmartWebClass>> classes;
