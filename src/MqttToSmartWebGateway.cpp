@@ -129,7 +129,7 @@ TMqttToSmartWebGateway::TMqttToSmartWebGateway(const TMqttToSmartWebConfig& conf
                                                WBMQTT::PDeviceDriver        driver)
     : DriverState(config), CanPort(canPort), Driver(driver)
 {
-    CONTROLLER_TYPE = 0x3;    // SWX for now
+    CONTROLLER_TYPE = 14;    // External controller
     Enabled.store(true);
     CanPort->AddHandler(this);
     Thread = std::thread([this](){TaskFn();});
