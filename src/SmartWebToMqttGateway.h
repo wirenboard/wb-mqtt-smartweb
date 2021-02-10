@@ -52,16 +52,14 @@ class ISmartWebCodec
  * @tparam Int integer type
  * @tparam Div value to divide conversion result to
  */
-template<class Int, uint32_t Div, uint32_t Precision> class TIntCodec: public ISmartWebCodec
+template<class Int, uint32_t Div> class TIntCodec: public ISmartWebCodec
 {
     public:
         std::string Decode(const uint8_t* buf) const override
         {
             Int res;
             memcpy(&res, buf, sizeof(Int));
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(Precision) << res/double(Div);
-            return ss.str();
+            return WBMQTT::FormatFloat(res/double(Div));
         }
 
         std::vector<uint8_t> Encode(const std::string& value) const override
@@ -87,7 +85,7 @@ template<class Int, uint32_t Div, uint32_t Precision> class TIntCodec: public IS
  * @tparam Int integer type
  * @tparam Div value to divide conversion result to
  */
-template<class Int> class TIntCodec<Int, 1, 0>: public ISmartWebCodec
+template<class Int> class TIntCodec<Int, 1>: public ISmartWebCodec
 {
     public:
         std::string Decode(const uint8_t* buf) const override
