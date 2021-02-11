@@ -1,6 +1,8 @@
 wb-mqtt-smartweb (0.3.0) stable; urgency=medium
 
-  * SmartWeb to MQTT mapping is added
+  * SmartWeb to MQTT mapping is added.
+  * Multiple virtual controllers support is added.
+  * Config format has been changed. It is incompatible with old one.
 
  -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Wed, 03 Feb 2021 13:06:00 +0500
 
