@@ -178,34 +178,66 @@ namespace
         closedir(dir);
     }
 
-    void LoadMqttToSmartWebConfig(TMqttToSmartWebConfig& config, const Json::Value& configJson)
+    void LoadTiming(TMqttToSmartWebConfig& controller, const std::string& mqtt_channel, const Json::Value& configJson)
     {
-        const auto& mappings = configJson["mappings"];
+        auto& mqtt_channel_timing = controller.MqttChannelsTiming[mqtt_channel];
+        mqtt_channel_timing.refresh_last_update_timepoint();
+        if (configJson.isMember("value_timeout_min")) {
+            mqtt_channel_timing.ValueTimeoutMin = TTimeIntervalMin(configJson["value_timeout_min"].asInt());
+        }
+    }
 
-        for (Json::ArrayIndex i = 0; i < mappings.size(); ++i) {
-            auto mapping = mappings[i];
+    TMqttToSmartWebConfig LoadMqttToSmartWebController(const Json::Value& configJson)
+    {
+        TMqttToSmartWebConfig res;
+        res.ProgramId = configJson["controller_id"].asUInt();
 
-            const auto& mqtt = mapping["mqtt"];
-            const auto& mqtt_channel = mqtt["channel"].asString();
-
-            auto& mqtt_channel_timing = config.MqttChannelsTiming[mqtt_channel];
-            mqtt_channel_timing.refresh_last_update_timepoint();
-            if (mqtt.isMember("value_timeout_min")) {
-                mqtt_channel_timing.ValueTimeoutMin = TTimeIntervalMin(mqtt["value_timeout_min"].asInt());
-            }
-
-            if (mapping.isMember("parameter")) {
+        if (configJson.isMember("sensors")) {
+            for (const auto& sensor: configJson["sensors"]) {
+                const auto& mqtt_channel = sensor["channel"].asString();
+                LoadTiming(res, mqtt_channel, configJson);
                 SmartWeb::TParameterInfo parameter_info {0};
-                const auto& parameter = mapping["parameter"];
-                if (!parameter.isMember("parameter_id")) {
-                    throw std::runtime_error("parameter_id is misssing");
+                parameter_info.parameter_id = SmartWeb::Controller::Parameters::SENSOR;
+                parameter_info.program_type = SmartWeb::PT_CONTROLLER;
+                parameter_info.index = sensor["sensor_index"].asUInt();
+
+                LOG(Info) << "Map sensor {"
+                        << "parameter_index: " << (int)parameter_info.index << ", "
+                        << "raw " << (int)parameter_info.raw
+                        << "} to {channel: " << mqtt_channel << "};";
+
+                if (res.ParameterMapping.count(parameter_info.raw)) {
+                    throw std::runtime_error("Malformed JSON config: duplicate sensor");
                 }
-                if (!parameter.isMember("program_type")) {
-                    throw std::runtime_error("program_type is misssing");
+
+                res.ParameterMapping[parameter_info.raw].from_string(mqtt_channel);
+                res.ParameterCount = std::max(res.ParameterCount, uint8_t(parameter_info.index + 1));
+            }
+        }
+
+        if (configJson.isMember("outputs")) {
+            for (const auto& output: configJson["outputs"]) {
+                const auto& mqtt_channel = output["channel"].asString();
+                LoadTiming(res, mqtt_channel, configJson);
+                auto channel_id = output["output_index"].asUInt();
+
+                LOG(Info) << "Map output {"
+                        << "channel_id: " << (int)channel_id
+                        << "} to {channel: " << mqtt_channel << "};";
+
+                if (res.OutputMapping[channel_id].is_initialized()) {
+                    throw std::runtime_error("Malformed JSON config: duplicate output" );
                 }
-                if (!parameter.isMember("parameter_index")) {
-                    throw std::runtime_error("parameter_index is misssing");
-                }
+
+                res.OutputMapping[channel_id].from_string(mqtt_channel);
+            }
+        }
+
+        if (configJson.isMember("parameters")) {
+            for (const auto& parameter: configJson["parameters"]) {
+                const auto& mqtt_channel = parameter["channel"].asString();
+                LoadTiming(res, mqtt_channel, configJson);
+                SmartWeb::TParameterInfo parameter_info {0};
                 parameter_info.parameter_id = parameter["parameter_id"].asUInt();
                 parameter_info.program_type = parameter["program_type"].asUInt();
                 parameter_info.index = parameter["parameter_index"].asUInt();
@@ -217,49 +249,28 @@ namespace
                         << "raw " << (int)parameter_info.raw
                         << "} to {channel: " << mqtt_channel << "};";
 
-                if (config.ParameterMapping.count(parameter_info.raw)) {
+                if (res.ParameterMapping.count(parameter_info.raw)) {
                     throw std::runtime_error("Malformed JSON config: duplicate parameter");
                 }
 
-                config.ParameterMapping[parameter_info.raw].from_string(mqtt_channel);
-                config.ParameterCount = std::max(config.ParameterCount, uint8_t(parameter_info.index + 1));
+                res.ParameterMapping[parameter_info.raw].from_string(mqtt_channel);
+                res.ParameterCount = std::max(res.ParameterCount, uint8_t(parameter_info.index + 1));
             }
+        }
 
-            if (mapping.isMember("sensor")) {
-                SmartWeb::TParameterInfo parameter_info {0};
-                parameter_info.parameter_id = SmartWeb::Controller::Parameters::SENSOR;
-                parameter_info.program_type = SmartWeb::PT_CONTROLLER;
-                parameter_info.index = mapping["sensor"]["index"].asUInt();
+        if (!configJson.isMember("parameters") && !configJson.isMember("sensors") && !configJson.isMember("outputs")) {
+            throw std::runtime_error("Malformed JSON config: no parameter, sensor or output in mapping");
+        }
+        return res;
+    }
 
-                LOG(Info) << "Map sensor {"
-                        << "parameter_index: " << (int)parameter_info.index << ", "
-                        << "raw " << (int)parameter_info.raw
-                        << "} to {channel: " << mqtt_channel << "};";
-
-                if (config.ParameterMapping.count(parameter_info.raw)) {
-                    throw std::runtime_error("Malformed JSON config: duplicate sensor");
-                }
-
-                config.ParameterMapping[parameter_info.raw].from_string(mqtt_channel);
-                config.ParameterCount = std::max(config.ParameterCount, uint8_t(parameter_info.index + 1));
-            }
-
-            if (mapping.isMember("output")) {
-                auto channel_id = mapping["output"]["channel_id"].asUInt();
-
-                LOG(Info) << "Map output {"
-                        << "channel_id: " << (int)channel_id
-                        << "} to {channel: " << mqtt_channel << "};";
-
-                if (config.OutputMapping[channel_id].is_initialized()) {
-                    throw std::runtime_error("Malformed JSON config: duplicate output" );
-                }
-
-                config.OutputMapping[channel_id].from_string(mqtt_channel);
-            }
-
-            if (!mapping.isMember("parameter") && !mapping.isMember("sensor") && !mapping.isMember("output")) {
-                throw std::runtime_error("Malformed JSON config: no parameter, sensor or output in mapping");
+    void LoadMqttToSmartWebConfig(TConfig& config, const Json::Value& configJson)
+    {
+        for (const auto& controller: configJson["controllers"]) {
+            try {
+                config.Controllers.push_back(LoadMqttToSmartWebController(controller));
+            } catch (std::exception& e) {
+                LOG(Error) << e.what();
             }
         }
     }
@@ -300,9 +311,7 @@ void LoadConfig(TConfig&           config,
     Json::Value configJson = WBMQTT::JSON::Parse(configFileName);
     WBMQTT::JSON::Validate(configJson, WBMQTT::JSON::Parse(configSchemaFileName));
 
-    config.MqttToSmartWeb.ProgramId = configJson["controller_id"].asUInt();
-
-    LoadMqttToSmartWebConfig(config.MqttToSmartWeb, configJson);
+    LoadMqttToSmartWebConfig(config, configJson);
 
     Json::Value classSchema = WBMQTT::JSON::Parse(classSchemaFileName);
     LoadSmartWebToMqttConfig(config.SmartWebToMqtt, configJson, configFileName + ".d/classes", classSchema);

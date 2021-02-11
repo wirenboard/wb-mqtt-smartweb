@@ -1,28 +1,30 @@
 {
+    "debug": false,
     "poll_interval_ms": 1000,
-    "controller_id": 204,
-    "mappings": [
+    "controllers": [
         {
-            "mqtt": {
-                "channel": "wb-adc/Vin"
-            },
-            "parameter": {
-                "parameter_id": 1,
-                "program_type": 11,
-                "parameter_index": 0
-            }
-        },
-        {
-            "mqtt": {
-                "channel": "wb-adc/R1",
-                "value_timeout_min": 60
-            },
-            "sensor": {
-                "index": 1
-            },
-            "output": {
-                "channel_id": 0
-            }
+            "controller_id": 204,
+            "sensors": [
+                {
+                    "channel": "wb-adc/R1",
+                    "sensor_index": 1
+                }
+            ],
+            "outputs": [
+                {
+                    "channel": "wb-adc/R1",
+                    "value_timeout_min": 60,
+                    "output_index": 0
+                }
+            ],
+            "parameters": [
+                {
+                    "channel": "wb-adc/Vin",
+                    "parameter_id": 1,
+                    "program_type": 11,
+                    "parameter_index": 0
+                }
+            ]
         }
     ]
 }

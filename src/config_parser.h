@@ -7,10 +7,10 @@
 
 struct TConfig
 {
-    TMqttToSmartWebConfig        MqttToSmartWeb;
-    TSmartWebToMqttConfig        SmartWebToMqtt;
-    WBMQTT::TMosquittoMqttConfig Mqtt;
-    bool                         Debug = false;
+    std::vector<TMqttToSmartWebConfig> Controllers;
+    TSmartWebToMqttConfig              SmartWebToMqtt;
+    WBMQTT::TMosquittoMqttConfig       Mqtt;
+    bool                               Debug = false;
 };
 
 void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data);

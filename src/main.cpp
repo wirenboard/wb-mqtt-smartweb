@@ -188,7 +188,10 @@ int main(int argc, char *argv[])
 
         {
             TSmartWebToMqttGateway smartWebToMqttGateway(config.SmartWebToMqtt, port, driver);
-            TMqttToSmartWebGateway mqttToSmartWebGateway(config.MqttToSmartWeb, port, driver);
+            std::vector<std::shared_ptr<TMqttToSmartWebGateway>> mqttToSmartWebGateways;
+            for (const auto& controller: config.Controllers) {
+                mqttToSmartWebGateways.push_back(std::make_shared<TMqttToSmartWebGateway>(controller, port, driver));
+            }
 
             initialized.Complete();
             SignalHandling::Start();
