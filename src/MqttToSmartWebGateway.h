@@ -96,6 +96,9 @@ class TMqttToSmartWebGateway: public CAN::IFrameHandler
         std::thread                 Thread;
         std::atomic_bool            Enabled;
 
+        static bool                 FilterIsSet;
+        static std::mutex           StartupMutex;
+
         bool SelectTimeout(CAN::TFrame& frame);
         void TaskFn();
         bool Handle(const CAN::TFrame& frame);

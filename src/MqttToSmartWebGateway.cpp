@@ -124,6 +124,9 @@ bool TMqttChannelTiming::is_timed_out() const
     return (now() - LastUpdateTimePoint) > ValueTimeoutMin;
 }
 
+bool       TMqttToSmartWebGateway::FilterIsSet = false;
+std::mutex TMqttToSmartWebGateway::StartupMutex;
+
 TMqttToSmartWebGateway::TMqttToSmartWebGateway(const TMqttToSmartWebConfig& config,
                                                std::shared_ptr<CAN::IPort>  canPort,
                                                WBMQTT::PDeviceDriver        driver)
@@ -192,9 +195,16 @@ bool TMqttToSmartWebGateway::IsForMe(const SmartWeb::TCanHeader& header, const T
 
 void TMqttToSmartWebGateway::TaskFn()
 {
-    uint8_t program_id = DriverState.ProgramId;
+    {
+        std::unique_lock<std::mutex> lk(StartupMutex);
+        if (!FilterIsSet) {
+            Driver->SetFilter(GetAllDevicesFilter());
+            Driver->WaitForReady();
+            FilterIsSet = true;
+        }
+    }
 
-    Driver->SetFilter(GetAllDevicesFilter());
+    uint8_t program_id = DriverState.ProgramId;
 
     auto onHandler = Driver->On<TControlValueEvent>([&](const TControlValueEvent & event){
         auto deviceControl = TMqttChannel::to_string(event.Control->GetDevice()->GetId(), event.Control->GetId());
