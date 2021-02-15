@@ -2,7 +2,12 @@
 
 #include <wblib/log.h>
 
-extern WBMQTT::TLogger Error;
-extern WBMQTT::TLogger Warn;
-extern WBMQTT::TLogger Info;
-extern WBMQTT::TLogger Debug;
+extern WBMQTT::TLogger ErrorMqttToSw;
+extern WBMQTT::TLogger WarnMqttToSw;
+extern WBMQTT::TLogger InfoMqttToSw;
+extern WBMQTT::TLogger DebugMqttToSw;
+
+extern WBMQTT::TLogger ErrorSwToMqtt;
+extern WBMQTT::TLogger WarnSwToMqtt;
+extern WBMQTT::TLogger InfoSwToMqtt;
+extern WBMQTT::TLogger DebugSwToMqtt;

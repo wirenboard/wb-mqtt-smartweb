@@ -74,7 +74,7 @@ namespace
             } else {
                 p->Codec = std::make_unique<TSensorCodec>();
             }
-            LOG(Debug) << "Input '" << p->Name << "' " << p->Type << " id " << p->Id;
+            LOG(WBMQTT::Debug) << "Input '" << p->Name << "' " << p->Type << " id " << p->Id;
             programClass->Inputs.insert({p->Id, p});
             maxId = std::max(maxId, p->Id);
         }
@@ -95,7 +95,7 @@ namespace
             } else {
                 p->Codec = std::make_unique<TOutputCodec>();
             }
-            LOG(Debug) << "Output '" << p->Name << "' " << p->Type << " id " << p->Id;
+            LOG(WBMQTT::Debug) << "Output '" << p->Name << "' " << p->Type << " id " << p->Id;
             programClass->Outputs.insert({p->Id, p});
             maxId = std::max(maxId, p->Id);
         }
@@ -121,14 +121,14 @@ namespace
                 if (p->Type == "temperature" && p->ReadOnly) {
                     p->Codec = std::make_unique<TSensorCodec>();
                 }
-                LOG(Debug) << "Parameter '" << p->Name << "', " << p->Type 
+                LOG(WBMQTT::Debug) << "Parameter '" << p->Name << "', " << p->Type 
                             << ", id " << p->Id 
                             << ", " << p->Codec->GetName()
                             << (p->ReadOnly ? ", read only" : "");
                 programClass->Parameters.insert({p->Id, p});
                 maxId = std::max(maxId, p->Id);
             } catch (const std::exception& e) {
-                LOG(Warn) << "Parameter '" << it.name() << "' is ignored. " << e.what();
+                LOG(WBMQTT::Warn) << "Parameter '" << it.name() << "' is ignored. " << e.what();
             }
         }
         return orderBase + maxId + 1;
@@ -149,7 +149,7 @@ namespace
 
         if ((dir = opendir(classesDir.c_str())) == NULL)
         {
-            LOG(Warn) << ("Cannot open " + classesDir + " directory");
+            LOG(WBMQTT::Warn) << ("Cannot open " + classesDir + " directory");
             return;
         }
 
@@ -171,7 +171,7 @@ namespace
                 WBMQTT::JSON::Validate(classJson, classSchema);
                 LoadSmartWebClass(config, classJson);
             } catch (const std::exception& e) {
-                LOG(Error) << "Failed to parse " << filepath << "\n" << e.what();
+                LOG(WBMQTT::Error) << "Failed to parse " << filepath << "\n" << e.what();
                 continue;
             }
         }
@@ -201,7 +201,7 @@ namespace
                 parameter_info.program_type = SmartWeb::PT_CONTROLLER;
                 parameter_info.index = sensor["sensor_index"].asUInt();
 
-                LOG(Info) << "Map sensor {"
+                LOG(WBMQTT::Info) << "Controller: " << (int)res.ProgramId << " map sensor {"
                         << "parameter_index: " << (int)parameter_info.index << ", "
                         << "raw " << (int)parameter_info.raw
                         << "} to {channel: " << mqtt_channel << "};";
@@ -221,7 +221,7 @@ namespace
                 LoadTiming(res, mqtt_channel, configJson);
                 auto channel_id = output["output_index"].asUInt();
 
-                LOG(Info) << "Map output {"
+                LOG(WBMQTT::Info) << "Controller: " << (int)res.ProgramId << " map output {"
                         << "channel_id: " << (int)channel_id
                         << "} to {channel: " << mqtt_channel << "};";
 
@@ -242,7 +242,7 @@ namespace
                 parameter_info.program_type = parameter["program_type"].asUInt();
                 parameter_info.index = parameter["parameter_index"].asUInt();
 
-                LOG(Info) << "Map parameter {"
+                LOG(WBMQTT::Info) << "Controller: " << (int)res.ProgramId << " map parameter {"
                         << "program_type: " << (int)parameter_info.program_type << ", "
                         << "parameter_id: " << (int)parameter_info.parameter_id << ", "
                         << "parameter_index: " << (int)parameter_info.index << ", "
@@ -270,7 +270,7 @@ namespace
             try {
                 config.Controllers.push_back(LoadMqttToSmartWebController(controller));
             } catch (std::exception& e) {
-                LOG(Error) << e.what();
+                LOG(WBMQTT::Error) << e.what();
             }
         }
     }
@@ -280,14 +280,14 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
 {
     auto programType = data["programType"].asUInt();
     if (config.Classes.count(programType)) {
-        LOG(Warn) << "Program type: " << programType << "is already defined";
+        LOG(WBMQTT::Warn) << "Program type: " << programType << "is already defined";
         return;
     }
 
     auto cl = std::make_shared<TSmartWebClass>();
     cl->Type = programType;
     cl->Name = data["class"].asString();
-    LOG(Debug) << "Loading class '" << cl->Name << "' (program type = " << programType << ")";
+    LOG(WBMQTT::Debug) << "Loading class '" << cl->Name << "' (program type = " << programType << ")";
 
     if (data.isMember("implements")) {
         for (const auto& parent: data["implements"]) {
@@ -300,7 +300,7 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
     LoadParameters(data, cl.get(), orderBase);
     
     config.Classes.insert({programType, cl});
-    LOG(Info) << "Class '" << cl->Name << "' (program type = " << programType << ") is loaded";
+    LOG(WBMQTT::Info) << "Class '" << cl->Name << "' (program type = " << programType << ") is loaded";
 }
 
 void LoadConfig(TConfig&           config,

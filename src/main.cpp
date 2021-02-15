@@ -32,6 +32,60 @@ const auto DRIVER_INIT_TIMEOUT_S = chrono::seconds(60);
 
 namespace
 {
+    void PrintUsage();
+
+    void ApplyDebugParam(int debugLevel)
+    {
+        switch (debugLevel) {
+        case 0:
+            break;
+        case -1:
+            ErrorMqttToSw.SetEnabled(false);
+            WarnMqttToSw.SetEnabled(false);
+            InfoMqttToSw.SetEnabled(false);
+            DebugMqttToSw.SetEnabled(false);
+            break;
+        case -2:
+            ErrorSwToMqtt.SetEnabled(false);
+            WarnSwToMqtt.SetEnabled(false);
+            InfoSwToMqtt.SetEnabled(false);
+            DebugSwToMqtt.SetEnabled(false);
+            break;
+        case -3:
+            WBMQTT::Info.SetEnabled(false);
+            break;
+        case -4:
+            ErrorMqttToSw.SetEnabled(false);
+            WarnMqttToSw.SetEnabled(false);
+            InfoMqttToSw.SetEnabled(false);
+            DebugMqttToSw.SetEnabled(false);
+            ErrorSwToMqtt.SetEnabled(false);
+            WarnSwToMqtt.SetEnabled(false);
+            InfoSwToMqtt.SetEnabled(false);
+            DebugSwToMqtt.SetEnabled(false);
+            WBMQTT::Info.SetEnabled(false);
+            break;
+        case 1:
+            DebugMqttToSw.SetEnabled(true);
+            break;
+        case 2:
+            DebugSwToMqtt.SetEnabled(true);
+            break;
+        case 3:
+            WBMQTT::Debug.SetEnabled(true);
+            break;
+        case 4:
+            DebugMqttToSw.SetEnabled(true);
+            DebugSwToMqtt.SetEnabled(true);
+            WBMQTT::Debug.SetEnabled(true);
+            break;
+        default:
+            cout << "Invalid -d parameter value " << debugLevel << endl;
+            PrintUsage();
+            exit(2);
+        }
+    }
+
     void PrintStartupInfo()
     {
         std::string commit(XSTR(WBMQTT_COMMIT));
@@ -49,10 +103,11 @@ namespace
              << " " << APP_NAME << " [options]" << endl
              << "Options:" << endl
              << "  -d      level      enable debuging output:" << endl
-             << "                       1 - " << APP_NAME << " only;" << endl
-             << "                       2 - MQTT only;" << endl
-             << "                       3 - both;" << endl
-             << "                       negative values - silent mode (-1, -2, -3))" << endl
+             << "                       1 - MQTT to SmartWeb only;" << endl
+             << "                       2 - SmartWeb to MQTT only;" << endl
+             << "                       3 - MQTT only;" << endl
+             << "                       4 - all;" << endl
+             << "                       negative values - silent mode (-1, -2, -3, -4))" << endl
              << "  -c      config     config file (default " << CONFIG_FULL_FILE_PATH << ")" << endl
              << "  -i      interface  CAN interface (default: can0)" << endl
              << "  -p      port       MQTT broker port (default: 1883)" << endl
@@ -68,13 +123,12 @@ namespace
                          string&               configFile,
                          string&               ifname)
     {
-        int debugLevel = 0;
         int c;
 
         while ((c = getopt(argc, argv, "d:c:g:p:h:H:T:u:P:")) != -1) {
             switch (c) {
             case 'd':
-                debugLevel = stoi(optarg);
+                ApplyDebugParam(stoi(optarg));
                 break;
             case 'c':
                 configFile = optarg;
@@ -103,35 +157,6 @@ namespace
                 exit(2);
             }
         }
-
-        switch (debugLevel) {
-        case 0:
-            break;
-        case -1:
-            ::Info.SetEnabled(false);
-            break;
-        case -2:
-            WBMQTT::Info.SetEnabled(false);
-            break;
-        case -3:
-            WBMQTT::Info.SetEnabled(false);
-            ::Info.SetEnabled(false);
-            break;
-        case 1:
-            ::Debug.SetEnabled(true);
-            break;
-        case 2:
-            WBMQTT::Debug.SetEnabled(true);
-            break;
-        case 3:
-            WBMQTT::Debug.SetEnabled(true);
-            ::Debug.SetEnabled(true);
-            break;
-        default:
-            cout << "Invalid -d parameter value " << debugLevel << endl;
-            PrintUsage();
-            exit(2);
-        }
     }
 }
 
@@ -150,12 +175,12 @@ int main(int argc, char *argv[])
     PrintStartupInfo();
 
     SignalHandling::SetWaitFor(DRIVER_INIT_TIMEOUT_S, initialized.GetFuture(), [&] {
-        LOG(Error) << "Driver takes too long to initialize. Exiting.";
+        LOG(WBMQTT::Error) << "Driver takes too long to initialize. Exiting.";
         exit(1);
     });
 
     SignalHandling::SetOnTimeout(DRIVER_STOP_TIMEOUT_S, [&]{
-        LOG(Error) << "Driver takes too long to stop. Exiting.";
+        LOG(WBMQTT::Error) << "Driver takes too long to stop. Exiting.";
         exit(1);
     });
 
@@ -167,7 +192,7 @@ int main(int argc, char *argv[])
         if (config.Mqtt.Id.empty())
             config.Mqtt.Id = APP_NAME;
     } catch (const exception& e) {
-        LOG(Error) << "FATAL: " << e.what();
+        LOG(WBMQTT::Error) << "FATAL: " << e.what();
         return 1;
     }
 
@@ -200,7 +225,7 @@ int main(int argc, char *argv[])
         driver->StopLoop();
         driver->Close();
     } catch (const exception& e) {
-        LOG(Error) << "FATAL: " << e.what();
+        LOG(WBMQTT::Error) << "FATAL: " << e.what();
         return 1;
     }
 

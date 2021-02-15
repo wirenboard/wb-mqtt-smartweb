@@ -6,33 +6,13 @@
 #include "exceptions.h"
 #include "log.h"
 
-#define LOG(logger) ::logger.Log() << "[SmartWeb->MQTT] "
+#include "MqttToSmartWebGateway.h"
 
 namespace
 {
     const int16_t SENSOR_SHORT_VALUE = -32768;
     const int16_t SENSOR_OPEN_VALUE  = -32767;
     const int16_t SENSOR_UNDEFINED   = -32766;
-
-    void print_frame(const std::string& prefix, const CAN::TFrame& frame)
-    {
-        if (Debug.IsEnabled()) {
-            SmartWeb::TCanHeader header;
-            header.raw = frame.can_id;
-
-            std::stringstream ss;
-            for (int i = 0; i < frame.can_dlc; ++i) {
-                ss << " " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int)frame.data[i];
-            }
-            LOG(Debug) << prefix << " " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << frame.can_id
-                       << " (pt: "  << std::dec << (int)header.rec.program_type
-                       << ", pid: " << std::dec << (int)header.rec.program_id
-                       << ", fid: " << std::dec << (int)header.rec.function_id
-                       << ", mf: "  << std::dec << (int)header.rec.message_format
-                       << ", mt: "  << std::dec << (int)header.rec.message_type
-                       << ")" << ss.str();
-        }
-    }
 }
 
 TEnumCodec::TEnumCodec(const std::map<uint8_t, std::string>& values): Values(values)
@@ -160,9 +140,9 @@ TSmartWebToMqttGateway::TSmartWebToMqttGateway(const TSmartWebToMqttConfig& conf
             auto param = event.Control->GetUserData().As<TSmartWebParameterControl>();
             auto frame = MakeSetParameterValueRequest(param, event.RawValue);
             CanPort->Send(frame);
-            print_frame("Set value request ", frame);
+            print_frame(DebugSwToMqtt, frame, "Set value request");
         } catch(const std::exception& e) {
-            LOG(Error) << e.what();
+            ErrorSwToMqtt.Log() << "Set value request: " << e.what();
         }
     });
     Scheduler->AddTask(MakePeriodicTask(config.PollInterval, [this]() { this->HandleMapping(); }, "SmartWeb->MQTT task"));
@@ -221,9 +201,9 @@ void TSmartWebToMqttGateway::HandleMapping()
     }
     try{
         CanPort->Send(frame);
-        print_frame("Send frame ", frame);
+        print_frame(DebugSwToMqtt, frame, "Send request");
     } catch(const std::exception& e) {
-        LOG(Error) << e.what();
+        print_frame(ErrorSwToMqtt, frame, std::string("Send request: ") + e.what());
     }
     ++RequestIndex;
 }
@@ -303,7 +283,7 @@ void AddRequests(std::vector<CAN::TFrame>&                                      
             }
         }
         if (!ok && c != "PROGRAM") {
-            LOG(Warn) << "Unknown program type: '" << c << "'";
+            WarnSwToMqtt.Log() << "Unknown program type: '" << c << "'";
         }
     }
 }
@@ -316,10 +296,10 @@ void TSmartWebToMqttGateway::AddProgram(const CAN::TFrame& frame)
     }
     auto cl = Config.Classes.find(frame.data[2]);
     if (cl == Config.Classes.end()) {
-        print_frame("Unknown program type, frame ", frame);
+        print_frame(DebugSwToMqtt, frame, "Unknown program type");
         return;
     }
-    LOG(Info) << "New program '" << cl->second->Name <<"':" << (int)header->rec.program_id << " is found";
+    InfoSwToMqtt.Log() << "New program '" << cl->second->Name <<"':" << (int)header->rec.program_id << " is found";
     KnownPrograms.insert({header->rec.program_id, cl->second.get()});
     std::unique_lock<std::mutex> lk(RequestMutex);
     AddRequests(Requests, cl->second->Name, *cl->second, header->rec.program_id, Config.Classes);
@@ -375,7 +355,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
 {
     auto p = params.find(parameterId);
     if (p == params.end()) {
-        LOG(Debug) << "Unknown parameter id: " << (int)parameterId;
+        DebugSwToMqtt.Log() << "Unknown parameter id: " << (int)parameterId;
         return;
     }
     std::string res;
@@ -383,7 +363,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
     try {
         res = p->second->Codec->Decode(data);
     } catch(const std::exception& e) {
-        LOG(Warn) << "Error reading '" << p->second->ProgramClass->Name << "':" << (int)programId << " " << p->second->Name << ": " << e.what();
+        WarnSwToMqtt.Log() << "Error reading '" << p->second->ProgramClass->Name << "':" << (int)programId << " " << p->second->Name << ": " << e.what();
         error = true;
     }
     std::string deviceName("sw " + p->second->ProgramClass->Name + " " + std::to_string(programId));
@@ -409,7 +389,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
             device->CreateControl(tx, MakeControlArgs(programId, *p->second, res, error)).GetValue();
         }
     } catch(const std::exception& e) {
-        LOG(Error) << e.what();
+        ErrorSwToMqtt.Log() << e.what();
     }
 }
 
@@ -421,7 +401,7 @@ void TSmartWebToMqttGateway::HandleGetValueResponse(const CAN::TFrame& frame)
         return;
     }
 
-    print_frame("Get value response: ", frame);
+    print_frame(DebugSwToMqtt, frame, "Get value response");
 
     SmartWeb::TParameterData* data = (SmartWeb::TParameterData*)&frame.data;
     if (data->program_type == SmartWeb::PT_PROGRAM) {
@@ -433,13 +413,13 @@ void TSmartWebToMqttGateway::HandleGetValueResponse(const CAN::TFrame& frame)
             SetParameter(cl->second->Outputs, data->indexed_parameter.index, data->indexed_parameter.value, header->rec.program_id);
             return;
         }
-        LOG(Debug) << "Unknown parameter id: " << (int)data->parameter_id;
+        DebugSwToMqtt.Log() << "Unknown parameter id: " << (int)data->parameter_id;
         return;
     }
 
     auto clParam = Config.Classes.find(data->program_type);
     if (clParam == Config.Classes.end()) {
-        LOG(Debug) << "Unknown program type: " << (int)data->program_type;
+        DebugSwToMqtt.Log() << "Unknown program type: " << (int)data->program_type;
         return;
     }
     SetParameter(clParam->second->Parameters, data->parameter_id, data->value, header->rec.program_id);

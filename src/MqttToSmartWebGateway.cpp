@@ -6,8 +6,6 @@
 #include "exceptions.h"
 #include "log.h"
 
-#define LOG(logger) ::logger.Log() << "[MQTT->SmartWeb] "
-
 using namespace WBMQTT;
 using namespace CAN;
 using namespace std;
@@ -20,30 +18,31 @@ namespace
     const auto SEND_MESSAGES_INTERVAL_MS = TTimeIntervalMs(1000);  // interval between messages
     const auto READ_TIMEOUT_MS           = TTimeIntervalMs(1000);  // 1 sec for messages waiting
 
-    void print_frame(const CAN::TFrame & frame)
-    {
-        if (::Debug.IsEnabled()) {
-            SmartWeb::TCanHeader header;
-            header.raw = frame.can_id;
-
-            LOG(Debug) << "frame can_id: "   << std::hex << frame.can_id;
-            LOG(Debug) << "program_type: "   << std::dec << (int)header.rec.program_type;
-            LOG(Debug) << "program_id: "     << std::dec << (int)header.rec.program_id;
-            LOG(Debug) << "function_id: "    << std::dec << (int)header.rec.function_id;
-            LOG(Debug) << "message_format: " << std::dec << (int)header.rec.message_format;
-            LOG(Debug) << "message_type: "   << std::dec << (int)header.rec.message_type;
-            LOG(Debug) << "frame data len: " << std::dec << (int)frame.can_dlc;
-            std::stringstream ss;
-            for (int i = 0; i < frame.can_dlc; ++i) {
-                ss << std::hex << (int)frame.data[i] << " ";
-            }
-            LOG(Debug) << "frame data: " << ss.str();
-        }
-    }
-
     TTimePoint now()
     {
         return chrono::steady_clock::now();
+    }
+}
+
+#define LOG(logger) ::logger.Log() << LOGGER_PREFIX
+
+void print_frame(WBMQTT::TLogger& logger, const CAN::TFrame& frame, const std::string& prefix)
+{
+    if (logger.IsEnabled()) {
+        SmartWeb::TCanHeader header;
+        header.raw = frame.can_id;
+
+        std::stringstream ss;
+        for (int i = 0; i < frame.can_dlc; ++i) {
+            ss << " " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int)frame.data[i];
+        }
+        logger.Log() << prefix << ": " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << frame.can_id
+                     << " (pt: "  << std::dec << (int)header.rec.program_type
+                     << ", pid: " << std::dec << (int)header.rec.program_id
+                     << ", fid: " << std::dec << (int)header.rec.function_id
+                     << ", mf: "  << std::dec << (int)header.rec.message_format
+                     << ", mt: "  << std::dec << (int)header.rec.message_type
+                     << ")" << ss.str();
     }
 }
 
@@ -234,27 +233,26 @@ void TMqttToSmartWebGateway::TaskFn()
     auto postpone_i_am_here = [&]{ SendIAmHereTime = now() + KEEP_ALIVE_INTERVAL_S; };
     auto postpone_connection_reset = [&]{ ResetConnectionTime = now() + CONNECTION_TIMEOUT_MIN; };
 
-    auto send_frame = [&](TFrame & frame) {
+    auto send_frame = [&](TFrame& frame, const std::string& prefix) {
         frame.can_id |= CAN_EFF_FLAG;   // just in case
         try {
             CanPort->Send(frame);
-            LOG(Debug) << "-------- frame is written --------";
+            print_frame(DebugMqttToSw, frame, "[" + std::to_string(DriverState.ProgramId) + "] " + prefix);
         } catch(const std::exception& e) {
-            LOG(Error) << e.what();
+            print_frame(ErrorMqttToSw, frame, "[" + std::to_string(DriverState.ProgramId) + "] " + prefix + " " + e.what());
         }
-        print_frame(frame);
     };
 
     auto read_mqtt_value = [&](const string & device_id, const string & control_id) {
         try {
             const auto & mqtt_channel_timing = DriverState.MqttChannelsTiming.at(TMqttChannel::to_string(device_id, control_id));
             if (mqtt_channel_timing.is_timed_out()) {
-                LOG(Warn) << "MQTT value of control " << control_id << " of device " << device_id << " timed out. Returning undefined value";
+                WarnMqttToSw.Log() << "MQTT value of control " << control_id << " of device " << device_id << " timed out. Returning undefined value";
                 return SmartWeb::SENSOR_UNDEFINED;
             }
         } catch (out_of_range &) {
             // Should never happen. Means that we did not add all mqtt channels to DriverState.MqttChannelsTiming at startup as we should've.
-            LOG(Error) << "[error code 1] There is bug in code; Report error code to driver maintainer";
+            ErrorMqttToSw.Log() << "[error code 1] There is bug in code; Report error code to driver maintainer";
         }
 
         try {
@@ -264,19 +262,19 @@ void TMqttToSmartWebGateway::TaskFn()
                     if (control->GetError().empty()) {
                         return SmartWeb::SensorData::FromDouble(control->GetValue().As<double>());
                     } else {
-                        LOG(Warn) << "Unable to read mqtt value because of error on control " << control_id << " of device " << device_id << ": " << control->GetError();
+                        WarnMqttToSw.Log() << "Unable to read mqtt value because of error on control " << control_id << " of device " << device_id << ": " << control->GetError();
                         return SmartWeb::SENSOR_UNDEFINED;
                     }
                 } else {
-                    LOG(Warn) << "Unable to read mqtt value because control " << control_id << " of device " << device_id << " does not exist";
+                    WarnMqttToSw.Log() << "Unable to read mqtt value because control " << control_id << " of device " << device_id << " does not exist";
                     return SmartWeb::SENSOR_UNDEFINED;
                 }
             } else {
-                LOG(Warn) << "Unable to read mqtt value because device " << device_id << " does not exist";
+                WarnMqttToSw.Log() << "Unable to read mqtt value because device " << device_id << " does not exist";
                 return SmartWeb::SENSOR_UNDEFINED;
             }
         } catch (const WBMQTT::TBaseException & e) {
-            LOG(Warn) << "Unable to read mqtt value: " << e.what();
+            WarnMqttToSw.Log() << "Unable to read mqtt value: " << e.what();
 
             return SmartWeb::SENSOR_UNDEFINED;
         }
@@ -284,8 +282,6 @@ void TMqttToSmartWebGateway::TaskFn()
 
     auto i_am_here = [&]{
         postpone_i_am_here();
-
-        LOG(Debug) << "Send I_AM_HERE";
 
         SmartWeb::TCanHeader header;
 
@@ -300,7 +296,7 @@ void TMqttToSmartWebGateway::TaskFn()
         frame.can_dlc = 1;
         frame.data[0] = CONTROLLER_TYPE;
 
-        send_frame(frame);
+        send_frame(frame, "send I_AM_HERE");
     };
 
     auto send_scheduled_i_am_here = [&]{
@@ -310,27 +306,19 @@ void TMqttToSmartWebGateway::TaskFn()
     };
 
     auto get_channel_number = [&](const SmartWeb::TCanHeader & header){
-        LOG(Debug) << "Send channel number";
-
         auto channel_number = max((size_t)DriverState.ParameterCount, DriverState.ParameterMapping.size());
 
         auto response = get_response_frame(header);
         response.can_dlc = 2;
         response.data[0] = 0xFF & channel_number;
         response.data[1] = 0xFF & channel_number >> 8;
-        send_frame(response);
+        send_frame(response, "send channel number");
     };
 
     auto get_parameter_value = [&](const SmartWeb::TCanHeader & header, const TFrameData & data){
         SmartWeb::TParameterData parameter_data {0};
 
         memcpy(&parameter_data.raw, data, 4);
-
-        LOG(Debug) << "Get parameter";
-        LOG(Debug) << "\t program_type " << (int)parameter_data.program_type;
-        LOG(Debug) << "\t parameter_id " << (int)parameter_data.parameter_id;
-        LOG(Debug) << "\t parameter_index " << (int)parameter_data.indexed_parameter.index;
-        LOG(Debug) << "\t raw " << (int)parameter_data.raw_info;
 
         if (parameter_data.program_type != SmartWeb::PT_CONTROLLER) {
             throw TUnsupportedError("Unsupported program type " + to_string((int)parameter_data.program_type) + " for GET_PARAMETER_VALUE");
@@ -341,11 +329,16 @@ void TMqttToSmartWebGateway::TaskFn()
         int16_t value = SmartWeb::SENSOR_UNDEFINED;
 
         if (itDeviceChannel == DriverState.ParameterMapping.end()) {
-            LOG(Warn) << "Unmapped parameter: "
-                "\n\t program_type: "  << (int)parameter_data.program_type <<
-                "\n\t parameter_id: " << (int)parameter_data.parameter_id <<
-                "\n\t parameter_index: " << (int)parameter_data.indexed_parameter.index;
+            WarnMqttToSw.Log() << "[" << (int)DriverState.ProgramId
+                               << "] unmapped parameter: type: " << (int)parameter_data.program_type
+                               <<  ", id: " << (int)parameter_data.parameter_id
+                               <<  ", index: " << (int)parameter_data.indexed_parameter.index;
         } else {
+            DebugMqttToSw.Log() << "[" << (int)DriverState.ProgramId
+                                << "] get parameter: type: " << (int)parameter_data.program_type
+                                <<  ", id: " << (int)parameter_data.parameter_id
+                                <<  ", index: " << (int)parameter_data.indexed_parameter.index
+                                << ", raw " << (int)parameter_data.raw_info;
             value = read_mqtt_value(itDeviceChannel->second.device, itDeviceChannel->second.control);
         }
 
@@ -359,12 +352,13 @@ void TMqttToSmartWebGateway::TaskFn()
 
         memcpy(response.data, &parameter_data.raw, 5);
 
-        send_frame(response);
+        send_frame(response, "get parameter response");
 
-        LOG(Info) << " Parameter {type: " << (int)parameter_data.program_type
-                             << ", id: " << (int)parameter_data.parameter_id
-                             << ", index: " << (int)parameter_data.indexed_parameter.index
-                             << "} <== " << SmartWeb::SensorData::ToDouble(value);
+        InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId 
+                           << "] parameter {type: " << (int)parameter_data.program_type
+                           << ", id: " << (int)parameter_data.parameter_id
+                           << ", index: " << (int)parameter_data.indexed_parameter.index
+                           << "} <== " << SmartWeb::SensorData::ToDouble(value);
     };
 
     auto get_output_value = [&](const SmartWeb::TCanHeader & header, const TFrameData & data){
@@ -388,9 +382,9 @@ void TMqttToSmartWebGateway::TaskFn()
 
         if (channel.is_initialized()) {
             channel.schedule_to_send(mapping_point);
-            LOG(Info) << "Scheduled output " << (int)channel_id;
+            InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] scheduled output " << (int)channel_id;
         } else {
-            LOG(Warn) << "Unmapped output " << (int)channel_id;
+            WarnMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] unmapped output " << (int)channel_id;
         }
     };
 
@@ -428,21 +422,19 @@ void TMqttToSmartWebGateway::TaskFn()
             frame.data[2] = 0xFF & value >> 8;
             frame.data[3] = 0xFF & value;
 
-            send_frame(frame);
+            send_frame(frame, "send output");
 
-            LOG(Info) << "Output {channel_id: " << (int)channel_id << "} <== " << SmartWeb::SensorData::ToDouble(value);
+            InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] output {channel_id: " << (int)channel_id << "} <== " << SmartWeb::SensorData::ToDouble(value);
 
             channel.postpone_send();
         }
     };
 
     auto get_controller_type = [&](const SmartWeb::TCanHeader & header){
-        LOG(Debug) << "Send controller type";
-
         auto response = get_response_frame(header);
         response.can_dlc = 1;
         response.data[0] = CONTROLLER_TYPE;
-        send_frame(response);
+        send_frame(response, "send controller type");
     };
 
     auto handle_request = [&](const SmartWeb::TCanHeader & header, const TFrameData & data) {
@@ -501,13 +493,13 @@ void TMqttToSmartWebGateway::TaskFn()
             if (Status != DS_IDLE) {
                 if (ResetConnectionTime <= now()) {
                     Status = DS_IDLE;
-                    LOG(Info) << "CONNECTION LOST: TIMEOUT. IDLE";
+                    InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] CONNECTION LOST: TIMEOUT. IDLE";
                 }
             }
         }
 
         if (frame_for_me) {
-            print_frame(frame);
+            print_frame(DebugMqttToSw, frame, "[" + std::to_string(DriverState.ProgramId) + "] got frame");
         }
 
         try {
@@ -515,7 +507,7 @@ void TMqttToSmartWebGateway::TaskFn()
                 case DS_IDLE:
                     if (frame_for_me) {
                         Status = DS_RUNNING;
-                        LOG(Info) << "CONNECTION ESTABILISHED. RUNNING";
+                        InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] CONNECTION ESTABILISHED. RUNNING";
                     } else {
                         send_scheduled_i_am_here();
                         break;
@@ -535,9 +527,9 @@ void TMqttToSmartWebGateway::TaskFn()
             }
 
         } catch (const TDriverError & e) {
-            LOG(Warn) << e.what();
+            WarnMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] " << e.what();
         } catch (const std::exception& e) {
-            LOG(Error) << e.what();
+            ErrorMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] " << e.what();
             exit(1);
         }
     }

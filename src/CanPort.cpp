@@ -46,7 +46,7 @@ namespace
                 addr.can_family = AF_CAN;
                 addr.can_ifindex = ifr.ifr_ifindex;
 
-                LOG(Info) << ifname.c_str() << " at index " << ifr.ifr_ifindex;
+                LOG(WBMQTT::Info) << ifname.c_str() << " at index " << ifr.ifr_ifindex;
 
                 if (bind(Socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
                 {
@@ -65,7 +65,7 @@ namespace
                         FD_SET(Socket, &rfds);
                         int r = select(Socket + 1, &rfds, nullptr, nullptr, &tv);
                         if (r < 0) {
-                            LOG(Error) << "select() failed " << strerror(errno);
+                            LOG(WBMQTT::Error) << "select() failed " << strerror(errno);
                             exit(1);
                         }
                         if (r > 0) {
@@ -79,15 +79,15 @@ namespace
                                             break;
                                         }
                                     } catch(const std::exception& e) {
-                                        LOG(Error) << e.what();
+                                        LOG(WBMQTT::Error) << e.what();
                                     }
                                 }
                             } else {
                                 if (nread < 0) {
-                                    LOG(Error) << "read() failed " << strerror(errno);
+                                    LOG(WBMQTT::Error) << "read() failed " << strerror(errno);
                                     exit(1);
                                 }
-                                LOG(Error) << "Got " << nread << " instead of " << sizeof(CAN::TFrame) << " bytes";
+                                LOG(WBMQTT::Error) << "Got " << nread << " instead of " << sizeof(CAN::TFrame) << " bytes";
                             }
                         }
                     }

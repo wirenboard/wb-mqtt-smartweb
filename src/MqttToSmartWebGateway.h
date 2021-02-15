@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include <wblib/wbmqtt.h>
+#include <wblib/log.h>
 
 #include "smart_web_conventions.h"
 #include "CanPort.h"
@@ -110,3 +111,4 @@ class TMqttToSmartWebGateway: public CAN::IFrameHandler
         void Stop();
 };
 
+void print_frame(WBMQTT::TLogger& logger, const CAN::TFrame& frame, const std::string& prefix);
