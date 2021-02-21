@@ -212,24 +212,15 @@ namespace
 
                 res.ParameterMapping[parameter_info.raw].from_string(mqtt_channel);
                 res.ParameterCount = std::max(res.ParameterCount, uint8_t(parameter_info.index + 1));
-            }
-        }
 
-        if (configJson.isMember("outputs")) {
-            for (const auto& output: configJson["outputs"]) {
-                const auto& mqtt_channel = output["channel"].asString();
-                LoadTiming(res, mqtt_channel, configJson);
-                auto channel_id = output["output_index"].asUInt();
+                // Sensor is also accesible as output with index = sensor_index - 1
+                auto outputIndex = parameter_info.index - 1;
 
-                LOG(WBMQTT::Info) << "Controller: " << (int)res.ProgramId << " map output {"
-                        << "channel_id: " << (int)channel_id
-                        << "} to {channel: " << mqtt_channel << "};";
-
-                if (res.OutputMapping[channel_id].is_initialized()) {
-                    throw std::runtime_error("Malformed JSON config: duplicate output" );
+                if (res.OutputMapping[outputIndex].is_initialized()) {
+                    throw std::runtime_error("Malformed JSON config: duplicate output " + std::to_string(outputIndex));
                 }
 
-                res.OutputMapping[channel_id].from_string(mqtt_channel);
+                res.OutputMapping[outputIndex].from_string(mqtt_channel);
             }
         }
 
