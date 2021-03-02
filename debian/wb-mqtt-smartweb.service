@@ -5,9 +5,11 @@ After=network.target wb-hwconf-manager.service wb-modules.service
 [Service]
 Type=simple
 Restart=always
-RestartSec=1
+RestartSec=2
 User=root
 ExecStart=/usr/bin/wb-mqtt-smartweb -c /etc/wb-mqtt-smartweb.conf
+StartLimitIntervalSec=0
+StartLimitBurst=0
 
 [Install]
 WantedBy=multi-user.target
