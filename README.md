@@ -30,10 +30,9 @@ It's designed to be used on [Wiren Board](https://wirenboard.com/en) family of p
 Либо вручную добавить в файл `/etc/network/interfaces` следующие строки:
 
 ```
-auto can0
-iface can0 inet manual
-pre-up ip link set can0 type can bitrate 20000
-up ifconfig can0 up
+allow-hotplug can0
+iface can0 can static
+bitrate 20000
 ```
 
 ### Структура конфигурационного файла
