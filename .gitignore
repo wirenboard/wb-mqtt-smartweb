@@ -2,10 +2,12 @@
 *.o
 wb-mqtt-smartweb
 *.core
-test
-test.cpp
 debian/*.debhelper.log
 debian/debhelper-build-stamp
 debian/*debhelper
 debian/*.substvars
 debian/files
+test/test-app
+*.gcda
+*.gcno
+build/

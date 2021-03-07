@@ -2,12 +2,10 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "title": "SmartWeb Driver Configuration",
-    "description": "Exposes Wirenboard periphery to SmartWeb CAN network",
     "definitions": {
-      "mqtt": {
+      "sensor_mapping": {
         "type": "object",
-        "title": "MQTT",
-        "headerTemplate": "{{self.channel}}",
+        "title": "Sensor",
         "properties": {
           "channel": {
             "type": "string",
@@ -17,85 +15,132 @@
           },
           "value_timeout_min": {
             "type": "integer",
-            "title": "Value timeout (minutes)",
+            "title": "Value timeout, minutes (\"-1\" - without timeout)",
             "default": -1,
             "propertyOrder": 2
+          },
+          "sensor_index": {
+            "type": "integer",
+            "title": "Sensor index",
+            "minimum": 1,
+            "maximum": 32,
+            "propertyOrder": 3
           }
         },
-        "required": ["channel"]
+        "required": ["channel", "sensor_index"]
       },
-      "sensor": {
+      "param_mapping": {
         "type": "object",
-        "title": "SmartWeb sensor",
-        "headerTemplate": "Sensor {{self.index}}",
+        "title": "Parameter",
         "properties": {
-          "index": {
+          "channel": {
+            "type": "string",
+            "title": "Device Id/Control Id",
+            "minLength": 3,
+            "propertyOrder": 1
+          },
+          "value_timeout_min": {
             "type": "integer",
-            "title": "Index",
+            "title": "Value timeout, minutes (\"-1\" - without timeout)",
+            "default": -1,
+            "propertyOrder": 2
+          },
+          "program_type": {
+            "type": "integer",
+            "title": "Program type",
             "minimum": 0,
             "maximum": 255,
-            "propertyOrder": 1
-          }
-        },
-        "required": ["index"]
-      },
-      "output": {
-        "type": "object",
-        "title": "SmartWeb output mapping point",
-        "headerTemplate": "Output mapping {{self.channel_id}}",
-        "properties": {
-          "channel_id": {
+            "propertyOrder": 3
+          },
+          "parameter_id": {
             "type": "integer",
-            "title": "Index",
+            "title": "Parameter id",
             "minimum": 0,
-            "maximum": 31,
-            "propertyOrder": 1
+            "maximum": 255,
+            "propertyOrder": 4
+          },
+          "parameter_index": {
+            "type": "integer",
+            "title": "Parameter index",
+            "minimum": 0,
+            "maximum": 255,
+            "propertyOrder": 5
           }
         },
-        "required": ["channel_id"]
+        "required": ["channel", "parameter_id", "program_type", "parameter_index"]
       },
-      "mapping": {
+      "controller": {
         "type": "object",
-        "title": "Mapping",
-        "headerTemplate": "Mapping of {{self.mqtt.device}}/{{self.mqtt.control}}",
+        "title": "Virtual SmartWeb controller",
+        "headerTemplate": "Virtual SmartWeb controller {{self.controller_id}}",
         "properties": {
-          "mqtt": {
-            "propertyOrder": 1,
-            "$ref": "#/definitions/mqtt"
+          "controller_id": {
+            "type": "integer",
+            "title": "Controller id",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 255,
+            "propertyOrder": 1
           },
-          "sensor": {
+          "sensors": {
+            "type": "array",
+            "title": "Sensors",
+            "items": { "$ref": "#/definitions/sensor_mapping" },
+            "_format": "table",
             "propertyOrder": 2,
-            "$ref": "#/definitions/sensor"
+            "options": {
+              "disable_array_reorder": true
+            }
           },
-          "output": {
-            "propertyOrder": 3,
-            "$ref": "#/definitions/output"
+          "parameters": {
+            "type": "array",
+            "title": "Parameters",
+            "items": { "$ref": "#/definitions/param_mapping" },
+            "_format": "table",
+            "propertyOrder": 4,
+            "options": {
+              "disable_array_reorder": true
+            }
           }
         },
-        "required": ["mqtt"],
-        "_format": "grid"
+        "required": ["controller_id"],
+        "defaultParameters": ["controller_id", "sensors"],
+        "options": {
+          "disable_collapse": true,
+          "disable_edit_json": true
+        }
       }
     },
     "properties": {
-      "controller_id": {
-        "type": "integer",
-        "title": "SmartWeb controller id",
-        "default": 0,
-        "minimum": 1,
-        "maximum": 255,
+      "debug": {
+        "type": "boolean",
+        "title": "Enable debug logging",
+        "default": false,
+        "_format": "checkbox",
         "propertyOrder": 1
       },
-      "mappings": {
-        "type": "array",
-        "title": "Mappings",
-        "description": "Wirenboard <--> SmartWeb mappings",
-        "items": { "$ref": "#/definitions/mapping" },
-        "minItems": 1,
-        "_format": "table",
+      "poll_interval_ms": {
+        "type": "integer",
+        "title": "Polling interval of SmartWeb programs, ms",
+        "default": 1000,
+        "minimum": 1,
         "propertyOrder": 2
+      },
+      "controllers": {
+        "type": "array",
+        "title": "Virtual SmartWeb controllers",
+        "items": { "$ref": "#/definitions/controller" },
+        "_format": "tabs",
+        "propertyOrder": 3,
+        "options": {
+          "disable_collapse": true
+        }
       }
     },
-    "required": ["controller_id", "mappings"],
+    "defaultProperties" : ["poll_interval_ms", "controllers"],
+    "options": {
+      "disable_collapse": true
+    },
     "configFile": {
       "path": "/etc/wb-mqtt-smartweb.conf",
       "service": "wb-mqtt-smartweb"

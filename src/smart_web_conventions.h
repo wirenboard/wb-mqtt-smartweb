@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdint.h>
 #include <limits>
 
@@ -18,42 +19,42 @@ namespace SmartWeb
     enum E_ProgramType : uint8_t
     {
         PT_CAN_PROGRAM_TYPE_UNDEFINED = 0,
-        PT_PROGRAM = 1,
-        PT_OUTDOOR_SENSOR = 2,
-        PT_CONSUMER = 3,
-        PT_CASCADE_MANAGER = 4,
-        PT_ROOM_DEVICE = 5,
-        PT_TEMPERATURE_SOURCE = 6,
-        PT_HEAT_ACCUMULATOR = 7,
-        PT_EXTENDED_CONTROLLER = 8,
-        PT_EXTENSION_CONTROLLER = 9,
-        PT_MONITORING_DEVICE = 10,
-        PT_CONTROLLER = 11,
-        PT_CIRCUIT = 12,
-        PT_SCHEDULE = 13,
-        PT_HEATING_CIRCUIT = 14,
-        PT_DIRECT_CIRCUIT = 15,
-        PT_DHW = 16,
-        PT_FLOW_THROUGH_DHW = 17,
-        PT_TEMPERATURE_GENERATOR = 18,
-        PT_POOL = 19,
-        PT_THERMOSTAT = 20,
-        PT_SNOWMELT = 21,
-        PT_REMOTE_CONTROL = 22,
-        PT_BOILER = 23,
-        PT_CHILLER = 24,
-        PT_SOLAR_COLLECTOR = 25,
-        PT_VENTILATION = 26,
-        PT_GENERIC_RELAY = 27,
-        PT_ALARM = 28,
+        PT_PROGRAM                    = 1,
+        PT_OUTDOOR_SENSOR             = 2,
+        PT_CONSUMER                   = 3,
+        PT_CASCADE_MANAGER            = 4,
+        PT_ROOM_DEVICE                = 5,
+        PT_TEMPERATURE_SOURCE         = 6,
+        PT_HEAT_ACCUMULATOR           = 7,
+        PT_EXTENDED_CONTROLLER        = 8,
+        PT_EXTENSION_CONTROLLER       = 9,
+        PT_MONITORING_DEVICE          = 10,
+        PT_CONTROLLER                 = 11,
+        PT_CIRCUIT                    = 12,
+        PT_SCHEDULE                   = 13,
+        PT_HEATING_CIRCUIT            = 14,
+        PT_DIRECT_CIRCUIT             = 15,
+        PT_DHW                        = 16,
+        PT_FLOW_THROUGH_DHW           = 17,
+        PT_TEMPERATURE_GENERATOR      = 18,
+        PT_POOL                       = 19,
+        PT_THERMOSTAT                 = 20,
+        PT_SNOWMELT                   = 21,
+        PT_REMOTE_CONTROL             = 22,
+        PT_BOILER                     = 23,
+        PT_CHILLER                    = 24,
+        PT_SOLAR_COLLECTOR            = 25,
+        PT_VENTILATION                = 26,
+        PT_GENERIC_RELAY              = 27,
+        PT_ALARM                      = 28
     };
 
     enum E_MessageType : uint8_t
     {
-        MT_MSG_REQUEST = 0,
-        MT_RESERVED = 1,
+        MT_MSG_REQUEST  = 0,
+        MT_RESERVED     = 1,
         MT_MSG_RESPONSE = 2,
-        MT_MSG_ERROR = 3,
+        MT_MSG_ERROR    = 3,
     };
 
     struct TMappingPoint {
@@ -70,8 +71,8 @@ namespace SmartWeb
         union {
             struct {
                 uint8_t hostID;
-                uint8_t channelID:5;
-                uint8_t type:3;
+                uint8_t channelID : 5;
+                uint8_t type      : 3;
             };
             uint8_t rawID[2];
             uint16_t raw;
@@ -110,7 +111,7 @@ namespace SmartWeb
                 GET_RELAY_MAPPING,
                 SET_RELAY_MAPPING,
                 RESET_TO_DEFAULTS,
-                RESET_PROGRAMS,
+                RESET_PROGRAMS
 
                 //add new functions here
             };
@@ -150,7 +151,7 @@ namespace SmartWeb
                 DATE,
                 TIME,
                 SENSOR_CALIBRATION,
-                DISCRETTE_OUTPUT_SIGNAL_FORM,
+                DISCRETTE_OUTPUT_SIGNAL_FORM
 
                 //add new parameters here
             };
@@ -170,7 +171,39 @@ namespace SmartWeb
                 GET_PARAMETER_MINIMUM,
                 GET_PARAMETER_MAXIMUM,
                 GET_PARAMETER_DEFAULT,
-                GET_PARAMETER_UNIT,
+                GET_PARAMETER_UNIT
+            };
+        }
+
+        namespace Parameters
+        {
+            enum enumParameterID
+            {
+                SENSOR = 1,
+                OUTPUT,
+                TITLE,
+                SENSOR_MAPPING,
+                RELAY_MAPPING
+
+                //add new parameters here
+            };
+        }
+    }
+
+    namespace Program
+    {
+        namespace Function
+        {
+            enum CANFunction
+            {
+                IS_ID_OCCUPIED = 1,
+                IS_TYPE_SUPPORTED,
+                GET_PROGRAM_TYPE,
+                GET_PROGRAM_NAME,
+                GET_PROGRAM_TYPES,
+                GET_SMARTNET_PROTOCOL_VERSION,
+                I_AM_PROGRAM,
+                IS_COLLISION
             };
         }
     }
@@ -179,25 +212,12 @@ namespace SmartWeb
         uint32_t raw;
         struct
         {
-            uint8_t program_type : 8,
-                program_id : 8,
-                function_id : 8;
-            union {
-                struct
-                {
-                    uint8_t reserve : 3,
-                        exception_flag : 1,
-                        response_flag : 1,
-                        tra : 3;
-                };
-
-                struct
-                {
-                    uint8_t message_format : 3,
-                        message_type : 2,
-                        trash : 3;
-                };
-            };
+            uint8_t program_type;
+            uint8_t program_id;
+            uint8_t function_id;
+            uint8_t message_format : 3;
+            uint8_t message_type   : 2;
+            uint8_t unused         : 3;
         } rec;
     };
 
@@ -206,8 +226,8 @@ namespace SmartWeb
         uint32_t raw_info;
 
         struct {
-            uint8_t program_type,
-                    parameter_id;
+            uint8_t program_type;
+            uint8_t parameter_id;
             union {
                 uint8_t value[6];
                 struct {
@@ -226,8 +246,8 @@ namespace SmartWeb
     union TParameterInfo {
         uint32_t raw;
         struct {
-            uint8_t program_type,
-                    parameter_id;
+            uint8_t program_type;
+            uint8_t parameter_id;
             union {
                 struct {
                     uint8_t	index;
