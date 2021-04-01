@@ -194,6 +194,7 @@ bool TMqttToSmartWebGateway::IsForMe(const SmartWeb::TCanHeader& header, const T
 
 void TMqttToSmartWebGateway::TaskFn()
 {
+    WBMQTT::SetThreadName("MQTT to SW " + to_string(int(DriverState.ProgramId)));
     {
         std::unique_lock<std::mutex> lk(StartupMutex);
         if (!FilterIsSet) {
@@ -354,11 +355,11 @@ void TMqttToSmartWebGateway::TaskFn()
 
         send_frame(response, "get parameter response");
 
-        InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId 
-                           << "] parameter {type: " << (int)parameter_data.program_type
-                           << ", id: " << (int)parameter_data.parameter_id
-                           << ", index: " << (int)parameter_data.indexed_parameter.index
-                           << "} <== " << SmartWeb::SensorData::ToDouble(value);
+        DebugMqttToSw.Log() << "[" << (int)DriverState.ProgramId 
+                            << "] parameter {type: " << (int)parameter_data.program_type
+                            << ", id: " << (int)parameter_data.parameter_id
+                            << ", index: " << (int)parameter_data.indexed_parameter.index
+                            << "} <== " << SmartWeb::SensorData::ToDouble(value);
     };
 
     auto get_output_value = [&](const SmartWeb::TCanHeader & header, const TFrameData & data){
@@ -368,10 +369,6 @@ void TMqttToSmartWebGateway::TaskFn()
         if (mapping_point.hostID != program_id) {
             throw TFrameError("hostID of mapping point does not match with driver program_id");
         }
-
-        // if (mapping_point.type != SmartWeb::TMappingPoint::CHANNEL_SENSOR_LOCAL) {
-        //     throw TUnsupportedError("mapping point type " + to_string(mapping_point.type) + " is unsupported");
-        // }
 
         auto channel_id = mapping_point.channelID;
         if (channel_id >= CONTROLLER_OUTPUT_MAX) {
@@ -424,7 +421,7 @@ void TMqttToSmartWebGateway::TaskFn()
 
             send_frame(frame, "send output");
 
-            InfoMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] output {channel_id: " << (int)channel_id << "} <== " << SmartWeb::SensorData::ToDouble(value);
+            DebugMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] output {channel_id: " << (int)channel_id << "} <== " << SmartWeb::SensorData::ToDouble(value);
 
             channel.postpone_send();
         }
@@ -526,6 +523,8 @@ void TMqttToSmartWebGateway::TaskFn()
                     break;
             }
 
+        } catch (const TUnsupportedError& e) {
+            DebugMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] " << e.what();
         } catch (const TDriverError & e) {
             WarnMqttToSw.Log() << "[" << (int)DriverState.ProgramId << "] " << e.what();
         } catch (const std::exception& e) {

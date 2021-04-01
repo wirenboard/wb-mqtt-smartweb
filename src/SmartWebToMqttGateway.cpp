@@ -133,7 +133,7 @@ std::string TOutputCodec::GetName() const
 TSmartWebToMqttGateway::TSmartWebToMqttGateway(const TSmartWebToMqttConfig& config,
                                                std::shared_ptr<CAN::IPort>  canPort,
                                                WBMQTT::PDeviceDriver        driver)
-    : CanPort(canPort), Config(config), Driver(driver), RequestIndex(0), Scheduler(MakeSimpleThreadedScheduler())
+    : CanPort(canPort), Config(config), Driver(driver), RequestIndex(0), Scheduler(MakeSimpleThreadedScheduler("SW to MQTT"))
 {
     EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this](const WBMQTT::TControlOnValueEvent& event){
         try {

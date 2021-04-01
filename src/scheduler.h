@@ -26,7 +26,7 @@ class IScheduler
         virtual void AddTask(std::shared_ptr<ITask> task) = 0;
 };
 
-IScheduler* MakeSimpleThreadedScheduler();
+IScheduler* MakeSimpleThreadedScheduler(const std::string& threadName);
 
 std::shared_ptr<ITask> MakePeriodicTask(const std::chrono::microseconds& period,
                                         std::function<void()> fn,
