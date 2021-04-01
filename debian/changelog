@@ -4,7 +4,7 @@ wb-mqtt-smartweb (1.0.1) stable; urgency=medium
     They are printed in debug channel instead to do not pollute logs during normal operation.
   * CPU load is decreased.
   
- -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Wed, 03 Feb 2021 13:06:00 +0500
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Thu, 01 Apr 2021 12:00:00 +0500
 
 wb-mqtt-smartweb (1.0.0) stable; urgency=medium
 
