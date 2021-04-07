@@ -195,7 +195,7 @@ namespace
         if (configJson.isMember("sensors")) {
             for (const auto& sensor: configJson["sensors"]) {
                 const auto& mqtt_channel = sensor["channel"].asString();
-                LoadTiming(res, mqtt_channel, configJson);
+                LoadTiming(res, mqtt_channel, sensor);
                 SmartWeb::TParameterInfo parameter_info {0};
                 parameter_info.parameter_id = SmartWeb::Controller::Parameters::SENSOR;
                 parameter_info.program_type = SmartWeb::PT_CONTROLLER;
