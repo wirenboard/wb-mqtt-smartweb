@@ -1,3 +1,17 @@
+wb-mqtt-smartweb (1.0.2) stable; urgency=medium
+
+  * Loading of "value_timeout_min" parameter from config is fixed. 
+  
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Wed, 07 Apr 2021 15:10:00 +0500
+
+wb-mqtt-smartweb (1.0.1) stable; urgency=medium
+
+  * Do not print in log's info channel values got from MQTT. 
+    They are printed in debug channel instead to do not pollute logs during normal operation.
+  * CPU load is decreased.
+  
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.ru>  Thu, 01 Apr 2021 12:00:00 +0500
+
 wb-mqtt-smartweb (1.0.0) stable; urgency=medium
 
   * Make it 1.0.0 as first public release

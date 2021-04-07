@@ -8,6 +8,7 @@
 #include <string.h>
 #include <vector>
 #include <algorithm>
+#include <wblib/utils.h>
 
 #include "log.h"
 
@@ -56,10 +57,11 @@ namespace
                 Enabled.store(true);
 
                 Thread = std::thread([&](){
-                    timeval tv;
-                    tv.tv_sec = READ_TIMEOUT_MS.count() / 1000;
-                    tv.tv_usec = (READ_TIMEOUT_MS.count() % 1000) * 1000;
+                    WBMQTT::SetThreadName("CAN listener");
                     while(Enabled.load()) {
+                        timeval tv;
+                        tv.tv_sec = READ_TIMEOUT_MS.count() / 1000;
+                        tv.tv_usec = (READ_TIMEOUT_MS.count() % 1000) * 1000;
                         fd_set rfds;
                         FD_ZERO(&rfds);
                         FD_SET(Socket, &rfds);

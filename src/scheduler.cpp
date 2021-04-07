@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <atomic>
 
+#include <wblib/utils.h>
+
 namespace {
 
     struct TTaskDescription
@@ -30,6 +32,8 @@ namespace {
 
         std::mutex                    WaitMutex;
         std::condition_variable       ConditionVariable;
+
+        std::string                   ThreadName;
 
         void MakeIteration() {
             auto now = std::chrono::steady_clock::now();
@@ -59,9 +63,10 @@ namespace {
         }
 
     public:
-        TSimpleThreadedScheduler() : Enabled(true)
+        TSimpleThreadedScheduler(const std::string& threadName) : Enabled(true), ThreadName(threadName)
         {
             Thread = std::thread([&](){
+                WBMQTT::SetThreadName(ThreadName);
                 while(Enabled.load()) {
                     MakeIteration();
                 }
@@ -111,9 +116,9 @@ namespace {
     };
 }
 
-IScheduler* MakeSimpleThreadedScheduler()
+IScheduler* MakeSimpleThreadedScheduler(const std::string& threadName)
 {
-    return new TSimpleThreadedScheduler();
+    return new TSimpleThreadedScheduler(threadName);
 }
 
 std::shared_ptr<ITask> MakePeriodicTask(const std::chrono::microseconds& period,
