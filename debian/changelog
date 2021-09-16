@@ -1,3 +1,10 @@
+wb-mqtt-smartweb (1.1.0) stable; urgency=medium
+
+  * Update dependency on libwbmqtt1 to support fixed libmosquitto facade
+    (required for newer mosquitto backports)
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Thu, 16 Sep 2021 13:22:15 +0300
+
 wb-mqtt-smartweb (1.0.2) stable; urgency=medium
 
   * Loading of "value_timeout_min" parameter from config is fixed. 
