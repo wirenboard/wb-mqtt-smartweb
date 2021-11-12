@@ -2,6 +2,7 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "title": "SmartWeb Driver Configuration",
+    "description": "MQTT to SamrtWeb gateway configuration",
     "definitions": {
         "sensor_mapping": {
             "type": "object",
@@ -149,5 +150,29 @@
     "configFile": {
         "path": "/etc/wb-mqtt-smartweb.conf",
         "service": "wb-mqtt-smartweb"
+    },
+
+    "translations": {
+        "en": {},
+        "ru": {
+            "SmartWeb Driver Configuration": "Шлюз MQTT - SmartWeb",
+            "MQTT to SamrtWeb gateway configuration": "Конфигурация шлюза MQTT - SmartWeb",
+            "Device Id/Control Id": "Устройство/Канал",
+            "Value timeout, minutes (\"-1\" - without timeout)": "Таймаут (минуты) (\"-1\" - без таймаута)",
+            "Sensor index": "Номер датчика",
+            "Parameter": "Параметр",
+            "Program type": "Тип программы",
+            "Parameter id": "ID параметра",
+            "Parameter index": "Номер параметра",
+            "Virtual SmartWeb controller": "Контроллер SmartWeb",
+            "Sensor": "Датчик",
+            "Sensors": "Датчики",
+            "Parameters": "Параметры",
+            "Enable debug logging": "Включить отладочные сообщения",
+            "Polling interval of SmartWeb programs, ms": "Интервал опроса программ SmartWeb (мс)",
+            "Virtual SmartWeb controllers": "Виртуальные контроллеры SmartWeb",
+            "Controller id": "ID контроллера",
+            "Virtual SmartWeb controller {{self.controller_id}}": "Контроллер SmartWeb {{self.controller_id}}"
+        }
     }
 }
