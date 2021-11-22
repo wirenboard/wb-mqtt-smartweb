@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
-    "title": "SmartWeb Driver Configuration",
-    "description": "MQTT to SamrtWeb gateway configuration",
+    "title": "MQTT to SmartWeb gateway",
+    "description": "MQTT to SmartWeb gateway configuration",
     "definitions": {
         "sensor_mapping": {
             "type": "object",
@@ -68,12 +68,7 @@
                     "propertyOrder": 5
                 }
             },
-            "required": [
-                "channel",
-                "parameter_id",
-                "program_type",
-                "parameter_index"
-            ]
+            "required": ["channel", "parameter_id", "program_type", "parameter_index"]
         },
         "controller": {
             "type": "object",
@@ -155,8 +150,8 @@
     "translations": {
         "en": {},
         "ru": {
-            "SmartWeb Driver Configuration": "Шлюз MQTT - SmartWeb",
-            "MQTT to SamrtWeb gateway configuration": "Конфигурация шлюза MQTT - SmartWeb",
+            "MQTT to SmartWeb gateway": "Шлюз MQTT - SmartWeb",
+            "MQTT to SmartWeb gateway configuration": "Конфигурация шлюза MQTT - SmartWeb",
             "Device Id/Control Id": "Устройство/Канал",
             "Value timeout, minutes (\"-1\" - without timeout)": "Таймаут (минуты) (\"-1\" - без таймаута)",
             "Sensor index": "Номер датчика",
