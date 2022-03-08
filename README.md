@@ -1,9 +1,9 @@
 # wb-mqtt-smartweb
-MQTT to SamrtWeb gateway which follows [Wiren Board MQTT Conventions](https://github.com/wirenboard/homeui/blob/master/conventions.md).
+MQTT to SamrtWeb gateway which follows [Wiren Board MQTT Conventions](https://github.com/wirenboard/conventions/blob/main/README.md).
 It's designed to be used on [Wiren Board](https://wirenboard.com/en) family of programmable automation controllers (PACs).
 
 Шлюз предназначен для трансляции сообщений между MQTT брокером и системами с поддержкой протокола [SmartWeb](http://www.smartweb.su).
-Шлюз предназначен для устройств [Wiren Board](https://wirenboard.com/ru) и соответствует [Конвенции Wiren Board MQTT](https://github.com/wirenboard/homeui/blob/master/conventions.md).
+Шлюз предназначен для устройств [Wiren Board](https://wirenboard.com/ru) и соответствует [Конвенции Wiren Board MQTT](https://github.com/wirenboard/conventions/blob/main/README.md).
 
 Запускается командой `systemctl start wb-mqtt-smartweb` или `service wb-mqtt-smartweb start`
 
