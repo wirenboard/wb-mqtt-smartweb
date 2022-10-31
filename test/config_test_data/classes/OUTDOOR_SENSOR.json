@@ -1,0 +1,15 @@
+{
+	"class": "OUTDOOR_SENSOR",
+	"programType": 2,
+	"functionList": [],
+	"endClass": true,
+	"implements": ["PROGRAM"],
+	"inputs": {
+		"outdoorT":	{"id":0, "type": "temperature"}
+	},
+	"outputs": {
+	},
+	"parameters": {
+		"manualValue":		{"id":1,	"encoding":"short10",	"type": "temperature"}
+	}
+}

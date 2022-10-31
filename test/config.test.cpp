@@ -199,4 +199,7 @@ TEST_F(TLoadConfigTest, LoadConfig){
     EXPECT_NO_THROW(LoadConfig(config, TestRootDir +"/test_config.json",  TestRootDir +"/classes", SchemaFile, ClassSchemaFile));
 
     EXPECT_TRUE(config.Debug);
+    EXPECT_EQ(123, config.SmartWebToMqtt.PollInterval.count());
+
+    EXPECT_EQ(2, config.SmartWebToMqtt.Classes.size());
 }

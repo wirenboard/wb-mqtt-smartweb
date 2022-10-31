@@ -5,17 +5,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <experimental/filesystem>
+#include <regex>
+
 #include "log.h"
 
 #define LOG(logger) ::logger.Log() << "[config] "
 
 namespace
 {
-    bool EndsWith(const std::string& str, const std::string& suffix)
-    {
-        return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-    }
-
     std::unique_ptr<ISmartWebCodec> GetCodec(const Json::Value& data)
     {
         if (data.isMember("encoding")) {
@@ -135,47 +133,38 @@ namespace
     }
 
     void LoadSmartWebToMqttConfig(TSmartWebToMqttConfig& config,
-                                  const Json::Value&     configJson,
-                                  const std::string&     classesDir,
-                                  const Json::Value&     classSchema)
+                                  const Json::Value& configJson,
+                                  const std::string& classesDir,
+                                  const Json::Value& classSchema)
     {
-        if(configJson.isMember("poll_interval_ms")) {
+        if (configJson.isMember("poll_interval_ms")) {
             config.PollInterval = std::chrono::milliseconds(configJson["poll_interval_ms"].asUInt());
         }
 
-        DIR *dir;
-        struct dirent *dirp;
-        struct stat filestat;
+        try {
+            const std::experimental::filesystem::path dirPath{classesDir};
+            std::regex encodingRegex(".json$");
 
-        if ((dir = opendir(classesDir.c_str())) == NULL)
-        {
-            LOG(WBMQTT::Warn) << ("Cannot open " + classesDir + " directory");
+            for (auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
+                const auto fileName = entry.path().string();
+                if (entry.status().type() == std::experimental::filesystem::file_type::regular &&
+                    std::regex_search(fileName, encodingRegex))
+                {
+                    try {
+                        auto classJson = WBMQTT::JSON::Parse(fileName);
+                        WBMQTT::JSON::Validate(classJson, classSchema);
+                        LoadSmartWebClass(config, classJson);
+                    } catch (const std::exception& e) {
+                        LOG(WBMQTT::Error) << "Failed to parse " << fileName << "\n" << e.what();
+                        continue;
+                    }
+                }
+            }
+
+        } catch (std::experimental::filesystem::filesystem_error const& ex) {
+            LOG(WBMQTT::Error) << "Cannot open " + classesDir + " directory: " << ex.what();
             return;
         }
-
-        while ((dirp = readdir(dir))) {
-            std::string dname = dirp->d_name;
-            if(!EndsWith(dname, ".json"))
-                continue;
-
-            std::string filepath = classesDir + "/" + dname;
-            if (stat(filepath.c_str(), &filestat)) {
-                continue;
-            }
-            if (S_ISDIR(filestat.st_mode)) {
-                continue;
-            }
-
-            try {
-                auto classJson = WBMQTT::JSON::Parse(filepath);
-                WBMQTT::JSON::Validate(classJson, classSchema);
-                LoadSmartWebClass(config, classJson);
-            } catch (const std::exception& e) {
-                LOG(WBMQTT::Error) << "Failed to parse " << filepath << "\n" << e.what();
-                continue;
-            }
-        }
-        closedir(dir);
     }
 
     void LoadTiming(TMqttToSmartWebConfig& controller, const std::string& mqtt_channel, const Json::Value& configJson)
