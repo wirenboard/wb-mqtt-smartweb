@@ -294,16 +294,17 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
     LOG(WBMQTT::Info) << "Class '" << cl->Name << "' (program type = " << programType << ") is loaded";
 }
 
-void LoadConfig(TConfig&           config,
-                const std::string& configFileName,
+void LoadConfig(TConfig& config,
+                const std::string& configFilePath,
+                const std::string& pathToDeviceClassDirectory,
                 const std::string& configSchemaFileName,
                 const std::string& classSchemaFileName)
 {
-    Json::Value configJson = WBMQTT::JSON::Parse(configFileName);
+    Json::Value configJson = WBMQTT::JSON::Parse(configFilePath);
     WBMQTT::JSON::Validate(configJson, WBMQTT::JSON::Parse(configSchemaFileName));
 
     LoadMqttToSmartWebConfig(config, configJson);
 
     Json::Value classSchema = WBMQTT::JSON::Parse(classSchemaFileName);
-    LoadSmartWebToMqttConfig(config.SmartWebToMqtt, configJson, configFileName + ".d/classes", classSchema);
+    LoadSmartWebToMqttConfig(config.SmartWebToMqtt, configJson, pathToDeviceClassDirectory, classSchema);
 }

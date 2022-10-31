@@ -15,7 +15,8 @@ struct TConfig
 
 void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data);
 
-void LoadConfig(TConfig&           config,
-                const std::string& configFileName,
+void LoadConfig(TConfig& config,
+                const std::string& configFilePath,
+                const std::string& pathToDeviceClassDirectory,
                 const std::string& configSchemaFileName,
                 const std::string& classSchemaFileName);
