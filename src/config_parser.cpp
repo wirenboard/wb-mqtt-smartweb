@@ -257,6 +257,10 @@ namespace
 
     void LoadMqttToSmartWebConfig(TConfig& config, const Json::Value& configJson)
     {
+        if(configJson.isMember("debug")) {
+            config.Debug = configJson["debug"].asBool();
+        }
+
         for (const auto& controller: configJson["controllers"]) {
             try {
                 config.Controllers.push_back(LoadMqttToSmartWebController(controller));

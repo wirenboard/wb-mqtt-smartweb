@@ -193,3 +193,10 @@ TEST_F(TLoadConfigTest, SmartWebToMqttConfigParameters) {
 
     ParameterEqHelper(sample, *parameter);
 }
+
+TEST_F(TLoadConfigTest, LoadConfig){
+    TConfig config;
+    EXPECT_NO_THROW(LoadConfig(config, TestRootDir +"/test_config.json",  TestRootDir +"/classes", SchemaFile, ClassSchemaFile));
+
+    EXPECT_TRUE(config.Debug);
+}
