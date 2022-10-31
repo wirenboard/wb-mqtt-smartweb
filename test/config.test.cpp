@@ -202,4 +202,18 @@ TEST_F(TLoadConfigTest, LoadConfig){
     EXPECT_EQ(123, config.SmartWebToMqtt.PollInterval.count());
 
     EXPECT_EQ(2, config.SmartWebToMqtt.Classes.size());
+    auto outdoorSensorDeviceClass = config.SmartWebToMqtt.Classes[2];
+
+    ASSERT_NE(nullptr, outdoorSensorDeviceClass);
+    EXPECT_EQ("OUTDOOR_SENSOR", outdoorSensorDeviceClass->Name);
+    EXPECT_EQ(1, outdoorSensorDeviceClass->Inputs.size());
+    EXPECT_EQ(0, outdoorSensorDeviceClass->Outputs.size());
+    EXPECT_EQ(1, outdoorSensorDeviceClass->Parameters.size());
+
+    auto roomDeviceClass = config.SmartWebToMqtt.Classes[5];
+    ASSERT_NE(nullptr, roomDeviceClass);
+    EXPECT_EQ("ROOM_DEVICE", roomDeviceClass->Name);
+    EXPECT_EQ(7, roomDeviceClass->Inputs.size());
+    EXPECT_EQ(7, roomDeviceClass->Outputs.size());
+    EXPECT_EQ(33, roomDeviceClass->Parameters.size());
 }

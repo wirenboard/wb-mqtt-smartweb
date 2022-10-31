@@ -143,7 +143,7 @@ namespace
 
         try {
             const std::experimental::filesystem::path dirPath{classesDir};
-            std::regex encodingRegex(".json$");
+            std::regex encodingRegex("\\.json$");
 
             for (auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
                 const auto fileName = entry.path().string();
