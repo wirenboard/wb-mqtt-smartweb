@@ -135,7 +135,8 @@ namespace
     void LoadSmartWebToMqttConfig(TSmartWebToMqttConfig& config,
                                   const Json::Value& configJson,
                                   const std::string& classesDir,
-                                  const Json::Value& classSchema)
+                                  const Json::Value& classSchema,
+                                  TDeviceClassOwner owner)
     {
         if (configJson.isMember("poll_interval_ms")) {
             config.PollInterval = std::chrono::milliseconds(configJson["poll_interval_ms"].asUInt());
@@ -145,7 +146,7 @@ namespace
             const std::experimental::filesystem::path dirPath{classesDir};
             std::regex encodingRegex("\\.json$");
 
-            for (auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
+            for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
                 const auto fileName = entry.path().string();
                 if (entry.status().type() == std::experimental::filesystem::file_type::regular &&
                     std::regex_search(fileName, encodingRegex))
@@ -153,7 +154,7 @@ namespace
                     try {
                         auto classJson = WBMQTT::JSON::Parse(fileName);
                         WBMQTT::JSON::Validate(classJson, classSchema);
-                        LoadSmartWebClass(config, classJson);
+                        LoadSmartWebClass(config, classJson, owner);
                     } catch (const std::exception& e) {
                         LOG(WBMQTT::Error) << "Failed to parse " << fileName << "\n" << e.what();
                         continue;
@@ -260,17 +261,29 @@ namespace
     }
 }
 
-void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
+void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, TDeviceClassOwner owner)
 {
-    auto programType = data["programType"].asUInt();
-    if (config.Classes.count(programType)) {
-        LOG(WBMQTT::Warn) << "Program type: " << programType << "is already defined";
-        return;
+    const auto programType = data["programType"].asUInt();
+    const auto programName = data["class"].asString();
+
+    auto classIt = config.Classes.find(programType);
+
+    if (classIt != config.Classes.end()) {
+        if (classIt->second->Owner == owner) {
+            LOG(WBMQTT::Warn) << "Program type: " << programType << " is already defined";
+            return;
+        } else {
+            LOG(WBMQTT::Info) << "Overriding a built-in device class '" << programName << "' in *.d/classes";
+            if (owner != TDeviceClassOwner::USER) {
+                return;
+            }
+        }
     }
 
     auto cl = std::make_shared<TSmartWebClass>();
     cl->Type = programType;
-    cl->Name = data["class"].asString();
+    cl->Name = programName;
+    cl->Owner = owner;
     LOG(WBMQTT::Debug) << "Loading class '" << cl->Name << "' (program type = " << programType << ")";
 
     if (data.isMember("implements")) {
@@ -282,14 +295,20 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
     uint32_t orderBase = LoadInputs(data, cl.get());
     orderBase = LoadOutputs(data, cl.get(), orderBase);
     LoadParameters(data, cl.get(), orderBase);
-    
-    config.Classes.insert({programType, cl});
+
+    if (classIt != config.Classes.end()) {
+        classIt->second = cl;
+    } else {
+        config.Classes.insert({programType, cl});
+    }
+
     LOG(WBMQTT::Info) << "Class '" << cl->Name << "' (program type = " << programType << ") is loaded";
 }
 
 void LoadConfig(TConfig& config,
                 const std::string& configFilePath,
                 const std::string& pathToDeviceClassDirectory,
+                const std::string& pathToBuiltInDeviceClassDirectory,
                 const std::string& configSchemaFileName,
                 const std::string& classSchemaFileName)
 {
@@ -299,5 +318,14 @@ void LoadConfig(TConfig& config,
     LoadMqttToSmartWebConfig(config, configJson);
 
     Json::Value classSchema = WBMQTT::JSON::Parse(classSchemaFileName);
-    LoadSmartWebToMqttConfig(config.SmartWebToMqtt, configJson, pathToDeviceClassDirectory, classSchema);
+    LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
+                             configJson,
+                             pathToDeviceClassDirectory,
+                             classSchema,
+                             TDeviceClassOwner::USER);
+    LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
+                             configJson,
+                             pathToBuiltInDeviceClassDirectory,
+                             classSchema,
+                             TDeviceClassOwner::BUILTIN);
 }

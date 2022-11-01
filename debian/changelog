@@ -1,3 +1,10 @@
+wb-mqtt-smartweb (1.2.0) stable; urgency=medium
+
+  * Add built-in device class directory
+  * Change library for working with a file system
+
+ -- Roman Kochkin <roman.kochkin@wirenboard.ru>  Tue, 01 Nov 2022 10:27:55 +0400
+
 wb-mqtt-smartweb (1.1.1) stable; urgency=medium
 
   * SmartWeb schema translation to Russian

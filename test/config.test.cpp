@@ -42,7 +42,7 @@ protected:
     {
         auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
         auto pConfig = std::make_shared<TSmartWebToMqttConfig>();
-        LoadSmartWebClass(*pConfig, classJson);
+        LoadSmartWebClass(*pConfig, classJson, TDeviceClassOwner::USER);
         EXPECT_LE(1, pConfig->Classes.size());
         return pConfig;
     }
@@ -77,7 +77,7 @@ TEST_F(TLoadConfigTest, ClassValidation)
 TEST_F(TLoadConfigTest, SmartWebToMqttConfig) {
     auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
     TSmartWebToMqttConfig config;
-    LoadSmartWebClass(config, classJson);
+    LoadSmartWebClass(config, classJson, TDeviceClassOwner::USER);
     for (const auto& c: config.Classes) {
         Emit() << "Id: " << (int)c.first;
         Emit() << "Name: " << c.second->Name;
@@ -121,7 +121,7 @@ TEST_F(TLoadConfigTest, SmartWebToMqttConfig) {
 TEST_F(TLoadConfigTest, SmartWebToMqttConfigWoDat) {
     auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
     TSmartWebToMqttConfig config;
-    LoadSmartWebClass(config, classJson);
+    LoadSmartWebClass(config, classJson, TDeviceClassOwner::USER);
     ASSERT_LE(1, config.Classes.size());
     auto c = config.Classes.begin();
     const auto id = c->first;
@@ -194,14 +194,20 @@ TEST_F(TLoadConfigTest, SmartWebToMqttConfigParameters) {
     ParameterEqHelper(sample, *parameter);
 }
 
-TEST_F(TLoadConfigTest, LoadConfig){
+TEST_F(TLoadConfigTest, LoadConfig)
+{
     TConfig config;
-    EXPECT_NO_THROW(LoadConfig(config, TestRootDir +"/test_config.json",  TestRootDir +"/classes", SchemaFile, ClassSchemaFile));
+    EXPECT_NO_THROW(LoadConfig(config,
+                               TestRootDir + "/test_config.json",
+                               TestRootDir + "/classes",
+                               TestRootDir + "/builtin_classes",
+                               SchemaFile,
+                               ClassSchemaFile));
 
     EXPECT_TRUE(config.Debug);
     EXPECT_EQ(123, config.SmartWebToMqtt.PollInterval.count());
 
-    EXPECT_EQ(2, config.SmartWebToMqtt.Classes.size());
+    EXPECT_EQ(3, config.SmartWebToMqtt.Classes.size());
     auto outdoorSensorDeviceClass = config.SmartWebToMqtt.Classes[2];
 
     ASSERT_NE(nullptr, outdoorSensorDeviceClass);
@@ -216,4 +222,11 @@ TEST_F(TLoadConfigTest, LoadConfig){
     EXPECT_EQ(7, roomDeviceClass->Inputs.size());
     EXPECT_EQ(7, roomDeviceClass->Outputs.size());
     EXPECT_EQ(33, roomDeviceClass->Parameters.size());
+
+    auto temperatureSourceClass = config.SmartWebToMqtt.Classes[6];
+    ASSERT_NE(nullptr, temperatureSourceClass);
+    EXPECT_EQ("TEMPERATURE_SOURCE", temperatureSourceClass->Name);
+    EXPECT_EQ(0, temperatureSourceClass->Inputs.size());
+    EXPECT_EQ(0, temperatureSourceClass->Outputs.size());
+    EXPECT_EQ(6, temperatureSourceClass->Parameters.size());
 }
