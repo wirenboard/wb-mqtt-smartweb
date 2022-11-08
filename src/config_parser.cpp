@@ -139,26 +139,22 @@ namespace
 
         try {
             const std::experimental::filesystem::path dirPath{classesDir};
-            std::regex encodingRegex("\\.json$");
 
             for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
                 const auto fileName = entry.path().string();
-                if (entry.status().type() == std::experimental::filesystem::file_type::regular &&
-                    std::regex_search(fileName, encodingRegex))
-                {
+                if (std::experimental::filesystem::is_regular_file(entry) && (entry.path().extension() == ".json")) {
                     try {
                         auto classJson = WBMQTT::JSON::Parse(fileName);
                         WBMQTT::JSON::Validate(classJson, classSchema);
                         LoadSmartWebClass(config, classJson, owner);
                     } catch (const std::exception& e) {
                         LOG(WBMQTT::Error) << "Failed to parse " << fileName << "\n" << e.what();
-                        continue;
                     }
                 }
             }
 
         } catch (std::experimental::filesystem::filesystem_error const& ex) {
-            LOG(WBMQTT::Error) << "Cannot open " + classesDir + " directory: " << ex.what();
+            LOG(WBMQTT::Error) << "Cannot open " << classesDir << " directory: " << ex.what();
             return;
         }
     }
