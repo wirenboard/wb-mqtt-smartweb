@@ -1,7 +1,7 @@
 wb-mqtt-smartweb (1.2.0) stable; urgency=medium
 
-  * Add built-in device class directory
-  * Change library for working with a file system
+  * Add built-in device class directory /usr/share/wb-mqtt-smartweb/classes.
+    The device classes that will be included in the package are added to this directory.
 
  -- Roman Kochkin <roman.kochkin@wirenboard.ru>  Tue, 01 Nov 2022 10:27:55 +0400
 
