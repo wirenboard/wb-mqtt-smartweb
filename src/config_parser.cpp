@@ -127,6 +127,25 @@ namespace
         return orderBase + maxId + 1;
     }
 
+    /// Сalls a function for each file in a directory
+    /// \param dirPath directory to scan
+    /// \param fileExtension file extension for which the function is called.<br>
+    ///                      Includes a dot at the beginning of a line.<br>
+    ///                      For example: ".json"
+    /// \param scanFunc function to be called for files
+    void ScanFileInDirectory(
+        const std::experimental::filesystem::path& dirPath,
+        const std::string& fileExtension,
+        const std::function<void(const std::experimental::filesystem::path& filePath)>& scanFunc)
+    {
+        for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
+            const auto fileName = entry.path().string();
+            if (std::experimental::filesystem::is_regular_file(entry) && (entry.path().extension() == fileExtension)) {
+                scanFunc(entry.path());
+            }
+        }
+    }
+
     void LoadSmartWebToMqttConfig(TSmartWebToMqttConfig& config,
                                   const Json::Value& configJson,
                                   const std::string& classesDir,
@@ -140,19 +159,17 @@ namespace
         try {
             const std::experimental::filesystem::path dirPath{classesDir};
 
-            for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
-                const auto fileName = entry.path().string();
-                if (std::experimental::filesystem::is_regular_file(entry) && (entry.path().extension() == ".json")) {
-                    try {
-                        auto classJson = WBMQTT::JSON::Parse(fileName);
-                        WBMQTT::JSON::Validate(classJson, classSchema);
-                        LoadSmartWebClass(config, classJson, owner);
-                    } catch (const std::exception& e) {
-                        LOG(WBMQTT::Error) << "Failed to parse " << fileName << "\n" << e.what();
-                    }
-                }
-            }
-
+            ScanFileInDirectory(dirPath,
+                                ".json",
+                                [classSchema, &config, owner](const std::experimental::filesystem::path& filePath) {
+                                    try {
+                                        auto classJson = WBMQTT::JSON::Parse(filePath);
+                                        WBMQTT::JSON::Validate(classJson, classSchema);
+                                        LoadSmartWebClass(config, classJson, owner);
+                                    } catch (const std::exception& e) {
+                                        LOG(WBMQTT::Error) << "Failed to parse " << filePath << "\n" << e.what();
+                                    }
+                                });
         } catch (std::experimental::filesystem::filesystem_error const& ex) {
             LOG(WBMQTT::Error) << "Cannot open " << classesDir << " directory: " << ex.what();
             return;
