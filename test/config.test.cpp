@@ -132,7 +132,7 @@ TEST_F(TLoadConfigTest, SmartWebToMqttConfigParameters) {
     auto config = GetTestConfig();
     const auto smartWebClass = config->Classes.begin()->second;
 
-    EXPECT_EQ(33 ,smartWebClass->Parameters.size());
+    EXPECT_EQ(34 ,smartWebClass->Parameters.size());
     auto parameter = smartWebClass->Parameters.at(2);
 
     TestClassParameterSample sample = {
@@ -175,7 +175,7 @@ TEST_F(TLoadConfigTest, LoadConfig)
     EXPECT_EQ("ROOM_DEVICE", roomDeviceClass->Name);
     EXPECT_EQ(7, roomDeviceClass->Inputs.size());
     EXPECT_EQ(7, roomDeviceClass->Outputs.size());
-    EXPECT_EQ(33, roomDeviceClass->Parameters.size());
+    EXPECT_EQ(34, roomDeviceClass->Parameters.size());
 
     auto temperatureSourceClass = config.SmartWebToMqtt.Classes[6];
     ASSERT_NE(nullptr, temperatureSourceClass);

@@ -281,7 +281,6 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, T
             LOG(WBMQTT::Warn) << "Program type: " << programType << " is already defined";
             return;
         } else {
-            LOG(WBMQTT::Info) << "Overriding a built-in device class '" << programName << "' in *.d/classes";
             if (owner != TDeviceClassOwner::USER) {
                 return;
             }
@@ -305,6 +304,7 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, T
     LoadParameters(data, cl.get(), orderBase);
 
     if (classIt != config.Classes.end()) {
+        LOG(WBMQTT::Info) << "Overriding a built-in device class '" << programName << "' in *.d/classes";
         classIt->second = cl;
     } else {
         config.Classes.insert({programType, cl});
@@ -330,10 +330,10 @@ void LoadConfig(TConfig& config,
                              configJson,
                              pathToDeviceClassDirectory,
                              classSchema,
-                             TDeviceClassOwner::USER);
+                             TDeviceClassOwner::BUILTIN);
     LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
                              configJson,
                              pathToBuiltInDeviceClassDirectory,
                              classSchema,
-                             TDeviceClassOwner::BUILTIN);
+                             TDeviceClassOwner::USER);
 }
