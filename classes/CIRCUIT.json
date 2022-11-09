@@ -1,0 +1,28 @@
+{
+	"class": "CIRCUIT",
+	"programType": 12,
+	"functionList": [],
+	"endClass": false,
+	"implements": ["PROGRAM","CONSUMER"],
+	"inputs": {},
+	"outputs": {},
+	"parameters": {
+		"fixedTemperature":				{"id":1,	"encoding":"short10",	"type": "temperature"},
+		"heatCalculationMode":			{"id":2,	"encoding":"ubyte",		"values":{"0":"Weather", "1":"Fixed temperature"},	"type": "picklist"},
+		"heatingSlope":					{"id":3,	"encoding":"short100",	"type": "number"},
+		"roomInfluence":				{"id":4,	"encoding":"ubyte",		"type": "number"},
+		"currentOutsideTemperature":	{"id":5,	"encoding":"short10",	"type": "temperature", "readOnly":true},
+		"analogPumpControlMode":		{"id":6,	"encoding":"ubyte",		"values":{"0":"Constant speed", "1":"Auto speed calculation"},	"type": "picklist"},
+		"pumpMinimumSpeed":				{"id":7,	"encoding":"ubyte",		"type": "%"},
+		"pumpConstantSpeed":			{"id":8, 	"encoding":"ubyte",		"type": "%"},
+		"roomMinimumInfluence":			{"id":9,	"encoding":"short10",	"type": "temperature"},
+		"roomMaximumInfluence":			{"id":10,	"encoding":"short10",	"type": "temperature"},
+		"currentRoomTemperature":		{"id":11,	"encoding":"short10",	"type": "temperature", "readOnly":true},
+		"currentRoomRequiredT":			{"id":12,	"encoding":"short10",	"type": "temperature", "readOnly":true},
+		"currentRoomID":				{"id":13,	"encoding":"ubyte",		"type": "id", "readOnly":true},
+		"externalRequestTemperature":	{"id":14,	"encoding":"short10",	"type": "temperature"},
+		"modulationLevel":				{"id":15,	"encoding":"short10",	"type": "%", "readOnly":true},
+		"minimumTemperature":			{"id":16,	"encoding":"short10",	"type": "temperature"},
+		"maximumTemperature":			{"id":17,	"encoding":"short10",	"type": "temperature"}
+	}
+}

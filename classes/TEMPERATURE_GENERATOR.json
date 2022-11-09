@@ -1,0 +1,29 @@
+{
+	"class": "TEMPERATURE_GENERATOR",
+	"programType": 18,
+	"functionList": [],
+	"endClass": false,
+	"implements": ["PROGRAM","TEMPERATURE_SOURCE"],
+	"inputs": {},
+	"outputs": {},
+	"parameters": {
+		"maxTemperature":			{"id":1,	"encoding":"short10",	"type": "temperature"},
+		"minTemperature":			{"id":2,	"encoding":"short10",	"type": "temperature"},
+
+		"minTemperatureRestriction":{"id":4,	"encoding":"ubyte",		"type": "onOff"},
+		"hysteresis":				{"id":5,	"encoding":"short10",	"type": "temperature"},
+		"hysteresisReduceTime":		{"id":6,	"encoding":"uint60K",	"type": "minutes"},
+		"secondStageOnDelay":		{"id":7,	"encoding":"uint60K",	"type": "minutes"},
+		"secondStageHysteresis":	{"id":8, 	"encoding":"short10",	"type": "temperature"},
+
+
+		"pumpOffDelay":				{"id":11,	"encoding":"uint60K",	"type": "minutes"},
+		"stage1Power":				{"id":12,	"encoding":"ushort",	"type": "kW"},
+		"stage2Power":				{"id":13,	"encoding":"ushort",	"type": "kW"},
+
+		"modulationLevel":			{"id":15,	"encoding":"short10",	"type": "%", "readOnly":true},
+		"minOnTime":				{"id":16,	"encoding":"uint60K",	"type": "minutes"},
+		"minOffTime":				{"id":17,	"encoding":"uint60K",	"type": "minutes"},
+		"schedule":					{"id":18,	"encoding":"schedule1"}
+	}
+}

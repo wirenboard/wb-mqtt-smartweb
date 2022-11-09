@@ -1,0 +1,19 @@
+{
+	"class": "CONSUMER",
+	"programType": 3,
+	"functionList": [],
+	"endClass": false,
+	"implements": ["PROGRAM"],
+	"inputs": {},
+	"outputs": {},
+	"parameters": {
+		"priority":					{"id":1,	"encoding":"ubyte",	"type": "number"},
+		"temperatureSourceID":		{"id":2,	"encoding":"ubyte",	"type": "id"},
+
+
+		"temperatureRequestShift":	{"id":5,	"encoding":"short10",	"type": "temperature"},
+		"temperatureRequest":		{"id":6,	"encoding":"short10",	"type": "temperature", "readOnly":true},
+		"currentSourceTemperature":	{"id":7,	"encoding":"uint60K",	"type": "minutes", "readOnly":true},
+		"sourceOverheatDissipation":{"id":8, 	"encoding":"ubyte",		"type": "onOff"}
+	}
+}

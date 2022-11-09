@@ -1,0 +1,25 @@
+{
+	"class": "BOILER",
+	"programType": 23,
+	"functionList": [],
+	"endClass": true,
+	"implements": ["PROGRAM","TEMPERATURE_SOURCE","TEMPERATURE_GENERATOR"],
+	"inputs": {
+		"boilerT":	{"id":0, "type": "temperature"},
+		"returnT":	{"id":1, "type": "temperature"},
+		"externalRequest":	{"id":2, "type": "onOff"}
+	},
+	"outputs": {
+		"pump":			{"id":0, "type": "relay"},
+		"stage1":		{"id":1, "type": "relay"},
+		"stage2":		{"id":2, "type": "relay"},
+		"powerRequest": {"id":3, "type": "PWM"},
+		"temperatureRequest":	{"id":4, "type": "PWM"},
+		"returnControl":	{"id":5, "type": "PWM"}
+	},
+	"parameters": {
+		"warmupTemperature":		{"id":1,	"encoding":"short10",	"type": "temperature"},
+		"boilerCooling":			{"id":2,	"encoding":"ubyte",		"type": "onOff"},
+		"boilerCoolingTemperature":	{"id":3,	"encoding":"short10",	"type": "temperature"}
+	}
+}
