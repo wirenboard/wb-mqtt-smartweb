@@ -133,13 +133,11 @@ namespace
     ///                      Includes a dot at the beginning of a line.<br>
     ///                      For example: ".json"
     /// \param scanFunc function to be called for files
-    void ScanFileInDirectory(
-        const std::experimental::filesystem::path& dirPath,
-        const std::string& fileExtension,
-        const std::function<void(const std::experimental::filesystem::path& filePath)>& scanFunc)
+    void ScanFileInDirectory(const std::experimental::filesystem::path& dirPath,
+                             const std::string& fileExtension,
+                             const std::function<void(const std::experimental::filesystem::path& filePath)>& scanFunc)
     {
         for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
-            const auto fileName = entry.path().string();
             if (std::experimental::filesystem::is_regular_file(entry) && (entry.path().extension() == fileExtension)) {
                 scanFunc(entry.path());
             }
@@ -255,7 +253,7 @@ namespace
 
     void LoadMqttToSmartWebConfig(TConfig& config, const Json::Value& configJson)
     {
-        if(configJson.isMember("debug")) {
+        if (configJson.isMember("debug")) {
             config.Debug = configJson["debug"].asBool();
         }
 
