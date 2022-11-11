@@ -40,8 +40,8 @@ protected:
     {
         auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
         auto pConfig = std::make_shared<TSmartWebToMqttConfig>();
-        LoadSmartWebClass(*pConfig, classJson, TDeviceClassOwner::USER);
-        EXPECT_LE(1, pConfig->Classes.size());
+        LoadSmartWebClass(*pConfig, classJson, TDeviceClassSource::USER);
+        EXPECT_EQ(1, pConfig->Classes.size());
         return pConfig;
     }
 
@@ -61,22 +61,21 @@ TEST_F(TLoadConfigTest, ClassValidation)
 {
     auto classSchema = WBMQTT::JSON::Parse(ClassSchemaFile);
 
-    // good class
-    auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
-    WBMQTT::JSON::Validate(classJson, classSchema);
+    auto classJsonGood = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
+    WBMQTT::JSON::Validate(classJsonGood, classSchema);
 
     // missing fields
     for (size_t i = 1; i <= 8; ++i) {
-        auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/bad/bad" + std::to_string(i) + ".json");
-        ASSERT_THROW(WBMQTT::JSON::Validate(classJson, classSchema), std::runtime_error) << i;
+        auto classJsonBad = WBMQTT::JSON::Parse(TestRootDir + "/classes/bad/bad" + std::to_string(i) + ".json");
+        ASSERT_THROW(WBMQTT::JSON::Validate(classJsonBad, classSchema), std::runtime_error) << i;
     }
 }
 
 TEST_F(TLoadConfigTest, SmartWebToMqttConfigWoDat) {
     auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
     TSmartWebToMqttConfig config;
-    LoadSmartWebClass(config, classJson, TDeviceClassOwner::USER);
-    ASSERT_LE(1, config.Classes.size());
+    LoadSmartWebClass(config, classJson, TDeviceClassSource::USER);
+    ASSERT_EQ(1, config.Classes.size());
     auto c = config.Classes.begin();
     const auto id = c->first;
     const auto smartWebClass = c->second;

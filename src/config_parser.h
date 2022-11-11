@@ -13,7 +13,7 @@ struct TConfig
     bool                               Debug = false;
 };
 
-void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, TDeviceClassOwner owner);
+void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, TDeviceClassSource source);
 
 void LoadConfig(TConfig& config,
                 const std::string& configFilePath,
