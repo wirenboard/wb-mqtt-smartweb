@@ -278,10 +278,11 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, T
         if (classIt->second->Source == source) {
             LOG(WBMQTT::Warn) << "Program type: " << programType << " is already defined";
             return;
-        } else {
-            if (source != TDeviceClassSource::USER) {
-                return;
-            }
+        }
+
+        // Reject changes if there is an attempt to overwrite the user class with a built-in class
+        if (classIt->second->Source == TDeviceClassSource::USER) {
+            return;
         }
     }
 
