@@ -1,9 +1,7 @@
 #include "config_parser.h"
 
-#include <dirent.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <experimental/filesystem>
+#include <regex>
 
 #include "log.h"
 
@@ -11,11 +9,6 @@
 
 namespace
 {
-    bool EndsWith(const std::string& str, const std::string& suffix)
-    {
-        return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-    }
-
     std::unique_ptr<ISmartWebCodec> GetCodec(const Json::Value& data)
     {
         if (data.isMember("encoding")) {
@@ -134,48 +127,51 @@ namespace
         return orderBase + maxId + 1;
     }
 
-    void LoadSmartWebToMqttConfig(TSmartWebToMqttConfig& config,
-                                  const Json::Value&     configJson,
-                                  const std::string&     classesDir,
-                                  const Json::Value&     classSchema)
+    /// Сalls a function for each file in a directory
+    /// \param dirPath directory to scan
+    /// \param fileExtension file extension for which the function is called.<br>
+    ///                      Includes a dot at the beginning of a line.<br>
+    ///                      For example: ".json"
+    /// \param scanFunc function to be called for files
+    void ScanFileInDirectory(const std::experimental::filesystem::path& dirPath,
+                             const std::string& fileExtension,
+                             const std::function<void(const std::experimental::filesystem::path& filePath)>& scanFunc)
     {
-        if(configJson.isMember("poll_interval_ms")) {
+        for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
+            if (std::experimental::filesystem::is_regular_file(entry) && (entry.path().extension() == fileExtension)) {
+                scanFunc(entry.path());
+            }
+        }
+    }
+
+    void LoadSmartWebToMqttConfig(TSmartWebToMqttConfig& config,
+                                  const Json::Value& configJson,
+                                  const std::string& classesDir,
+                                  const Json::Value& classSchema,
+                                  TDeviceClassSource source)
+    {
+        if (configJson.isMember("poll_interval_ms")) {
             config.PollInterval = std::chrono::milliseconds(configJson["poll_interval_ms"].asUInt());
         }
 
-        DIR *dir;
-        struct dirent *dirp;
-        struct stat filestat;
+        try {
+            const std::experimental::filesystem::path dirPath{classesDir};
 
-        if ((dir = opendir(classesDir.c_str())) == NULL)
-        {
-            LOG(WBMQTT::Warn) << ("Cannot open " + classesDir + " directory");
+            ScanFileInDirectory(dirPath,
+                                ".json",
+                                [classSchema, &config, source](const std::experimental::filesystem::path& filePath) {
+                                    try {
+                                        auto classJson = WBMQTT::JSON::Parse(filePath);
+                                        WBMQTT::JSON::Validate(classJson, classSchema);
+                                        LoadSmartWebClass(config, classJson, source);
+                                    } catch (const std::exception& e) {
+                                        LOG(WBMQTT::Error) << "Failed to parse " << filePath << "\n" << e.what();
+                                    }
+                                });
+        } catch (std::experimental::filesystem::filesystem_error const& ex) {
+            LOG(WBMQTT::Error) << "Cannot open " << classesDir << " directory: " << ex.what();
             return;
         }
-
-        while ((dirp = readdir(dir))) {
-            std::string dname = dirp->d_name;
-            if(!EndsWith(dname, ".json"))
-                continue;
-
-            std::string filepath = classesDir + "/" + dname;
-            if (stat(filepath.c_str(), &filestat)) {
-                continue;
-            }
-            if (S_ISDIR(filestat.st_mode)) {
-                continue;
-            }
-
-            try {
-                auto classJson = WBMQTT::JSON::Parse(filepath);
-                WBMQTT::JSON::Validate(classJson, classSchema);
-                LoadSmartWebClass(config, classJson);
-            } catch (const std::exception& e) {
-                LOG(WBMQTT::Error) << "Failed to parse " << filepath << "\n" << e.what();
-                continue;
-            }
-        }
-        closedir(dir);
     }
 
     void LoadTiming(TMqttToSmartWebConfig& controller, const std::string& mqtt_channel, const Json::Value& configJson)
@@ -257,6 +253,10 @@ namespace
 
     void LoadMqttToSmartWebConfig(TConfig& config, const Json::Value& configJson)
     {
+        if (configJson.isMember("debug")) {
+            config.Debug = configJson["debug"].asBool();
+        }
+
         for (const auto& controller: configJson["controllers"]) {
             try {
                 config.Controllers.push_back(LoadMqttToSmartWebController(controller));
@@ -267,17 +267,29 @@ namespace
     }
 }
 
-void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
+void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, TDeviceClassSource source)
 {
-    auto programType = data["programType"].asUInt();
-    if (config.Classes.count(programType)) {
-        LOG(WBMQTT::Warn) << "Program type: " << programType << "is already defined";
-        return;
+    const auto programType = data["programType"].asUInt();
+    const auto className = data["class"].asString();
+
+    auto classIt = config.Classes.find(programType);
+
+    if (classIt != config.Classes.end()) {
+        if (classIt->second->Source == source) {
+            LOG(WBMQTT::Warn) << "Program type: " << programType << " is already defined";
+            return;
+        }
+
+        // Reject changes if there is an attempt to overwrite the user class with a built-in class
+        if (classIt->second->Source == TDeviceClassSource::USER) {
+            return;
+        }
     }
 
     auto cl = std::make_shared<TSmartWebClass>();
     cl->Type = programType;
-    cl->Name = data["class"].asString();
+    cl->Name = className;
+    cl->Source = source;
     LOG(WBMQTT::Debug) << "Loading class '" << cl->Name << "' (program type = " << programType << ")";
 
     if (data.isMember("implements")) {
@@ -289,21 +301,38 @@ void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data)
     uint32_t orderBase = LoadInputs(data, cl.get());
     orderBase = LoadOutputs(data, cl.get(), orderBase);
     LoadParameters(data, cl.get(), orderBase);
-    
-    config.Classes.insert({programType, cl});
+
+    if (classIt != config.Classes.end()) {
+        LOG(WBMQTT::Info) << "Overriding a built-in device class '" << className << "' in *.d/classes";
+        classIt->second = cl;
+    } else {
+        config.Classes.insert({programType, cl});
+    }
+
     LOG(WBMQTT::Info) << "Class '" << cl->Name << "' (program type = " << programType << ") is loaded";
 }
 
-void LoadConfig(TConfig&           config,
-                const std::string& configFileName,
+void LoadConfig(TConfig& config,
+                const std::string& configFilePath,
+                const std::string& pathToDeviceClassDirectory,
+                const std::string& pathToBuiltInDeviceClassDirectory,
                 const std::string& configSchemaFileName,
                 const std::string& classSchemaFileName)
 {
-    Json::Value configJson = WBMQTT::JSON::Parse(configFileName);
+    Json::Value configJson = WBMQTT::JSON::Parse(configFilePath);
     WBMQTT::JSON::Validate(configJson, WBMQTT::JSON::Parse(configSchemaFileName));
 
     LoadMqttToSmartWebConfig(config, configJson);
 
     Json::Value classSchema = WBMQTT::JSON::Parse(classSchemaFileName);
-    LoadSmartWebToMqttConfig(config.SmartWebToMqtt, configJson, configFileName + ".d/classes", classSchema);
+    LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
+                             configJson,
+                             pathToDeviceClassDirectory,
+                             classSchema,
+                             TDeviceClassSource::BUILTIN);
+    LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
+                             configJson,
+                             pathToBuiltInDeviceClassDirectory,
+                             classSchema,
+                             TDeviceClassSource::USER);
 }

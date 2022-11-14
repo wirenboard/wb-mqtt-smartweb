@@ -17,11 +17,12 @@
 using namespace std;
 using namespace WBMQTT;
 
-const auto APP_NAME                          = "wb-mqtt-smartweb";
-const auto LIBWBMQTT_DB_FULL_FILE_PATH       = "/var/lib/wb-mqtt-smartweb/libwbmqtt.db";
-const auto CONFIG_FULL_FILE_PATH             = "/etc/wb-mqtt-smartweb.conf";
+const auto APP_NAME = "wb-mqtt-smartweb";
+const auto LIBWBMQTT_DB_FULL_FILE_PATH = "/var/lib/wb-mqtt-smartweb/libwbmqtt.db";
+const auto CONFIG_FULL_FILE_PATH = "/etc/wb-mqtt-smartweb.conf";
+const auto BUILT_IN_DEVICE_CLASSES_PATH = "/usr/share/wb-mqtt-smartweb/classes";
 const auto CONFIG_JSON_SCHEMA_FULL_FILE_PATH = "/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb.schema.json";
-const auto CLASS_JSON_SCHEMA_FULL_FILE_PATH  = "/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb-class.schema.json";
+const auto CLASS_JSON_SCHEMA_FULL_FILE_PATH = "/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb-class.schema.json";
 
 const auto DRIVER_STOP_TIMEOUT_S = chrono::seconds(10);
 
@@ -185,7 +186,12 @@ int main(int argc, char *argv[])
     });
 
     try {
-        LoadConfig(config, configFile, CONFIG_JSON_SCHEMA_FULL_FILE_PATH, CLASS_JSON_SCHEMA_FULL_FILE_PATH);
+        LoadConfig(config,
+                   configFile,
+                   configFile + ".d/classes",
+                   BUILT_IN_DEVICE_CLASSES_PATH,
+                   CONFIG_JSON_SCHEMA_FULL_FILE_PATH,
+                   CLASS_JSON_SCHEMA_FULL_FILE_PATH);
         if (config.Debug) {
             ::Debug.SetEnabled(true);
         }

@@ -190,11 +190,19 @@ struct TSmartWebParameter
     uint32_t                        Order;
 };
 
+enum class TDeviceClassSource
+{
+    BUILTIN,
+    USER
+};
+
 struct TSmartWebClass
 {
     uint8_t                                          Type;
     std::string                                      Name;
     std::vector<std::string>                         ParentClasses;
+
+    TDeviceClassSource Source;
 
     //! id to TSmartWebParameter mapping
     std::map<uint32_t, std::shared_ptr<TSmartWebParameter>> Inputs;

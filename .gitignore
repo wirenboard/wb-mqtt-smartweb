@@ -11,3 +11,9 @@ test/test-app
 *.gcda
 *.gcno
 build/
+
+# clang-format files
+.clang-format*
+
+# CLion configs and generated files
+.idea

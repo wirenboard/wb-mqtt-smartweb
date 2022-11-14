@@ -27,7 +27,7 @@ endif
 COMMON_SRCS := $(shell find $(SRC_DIRS) \( -name *.cpp -or -name *.c \) -and -not -name main.cpp)
 COMMON_OBJS := $(COMMON_SRCS:%=$(BUILD_DIR)/%.o)
 
-LDFLAGS = -lwbmqtt1 -lpthread
+LDFLAGS = -lwbmqtt1 -lpthread -lstdc++fs
 CXXFLAGS = -std=c++14 -Wall -Werror -I$(SRC_DIRS) -DWBMQTT_COMMIT="$(GIT_REVISION)" -DWBMQTT_VERSION="$(DEB_VERSION)" -Wno-psabi
 CFLAGS = -Wall -I$(SRC_DIR)
 
@@ -80,10 +80,12 @@ clean:
 install:
 	install -d $(DESTDIR)/var/lib/wb-mqtt-smartweb
 	install -d $(DESTDIR)/etc/wb-mqtt-smartweb.conf.d/classes
+	install -d $(DESTDIR)/usr/share/wb-mqtt-smartweb/classes
 	install -D -m 0644  wb-mqtt-smartweb.schema.json $(DESTDIR)/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb.schema.json
 	install -D -m 0644  wb-mqtt-smartweb-class.schema.json $(DESTDIR)/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb-class.schema.json
 	install -D -m 0644  config.json $(DESTDIR)/etc/wb-mqtt-smartweb.conf
 	install -D -m 0755 $(BUILD_DIR)/$(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
 	install -D -m 0644  wb-mqtt-smartweb.wbconfigs $(DESTDIR)/etc/wb-configs.d/21wb-mqtt-smartweb
+	cp -r classes $(DESTDIR)/usr/share/wb-mqtt-smartweb
 
 .PHONY: all test clean

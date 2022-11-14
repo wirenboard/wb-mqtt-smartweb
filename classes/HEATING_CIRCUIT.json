@@ -1,0 +1,31 @@
+{
+	"class": "HEATING_CIRCUIT",
+	"programType": 14,
+	"functionList": [],
+	"endClass": true,
+	"implements": ["PROGRAM","CONSUMER","CIRCUIT"],
+	"inputs": {
+		"flowTemperature":	{"id":0, "type": "temperature"},
+		"thermostatRequest":{"id":1, "type": "onOff"},
+		"externalRequest":	{"id":2, "type": "onOff"},
+		"pumpSwitch":		{"id":3, "type": "onOff"},
+	},
+	"outputs": {
+		"analogValve":			{"id":0, "type": "PWM"},
+		"valveOpen":			{"id":1, "type": "relay"},
+		"valveClose":			{"id":2, "type": "relay"},
+		"pump": 				{"id":3, "type": "relay"},
+		"thermoelectricValve":	{"id":4, "type": "relay"},
+		"heatExchangerLoadPump":{"id":5, "type": "PWM"},
+		"analogPump":			{"id":6, "type": "PWM"}
+	},
+	"parameters": {
+		"frostProtectionTemperature":	{"id":1,	"encoding":"short10",	"type": "temperature"},
+		"valveRunningTime":				{"id":2,	"encoding":"uint1000",	"type": "seconds"},
+		"valveOpenProportionalBand":	{"id":3,	"encoding":"short10",	"type": "temperature"},
+		"valveCloseProportionalBand":	{"id":4,	"encoding":"short10",	"type": "temperature"},
+		"valveBlocking":				{"id":5,	"encoding":"ubyte",		"type": "onOff"},
+		"pumpMode":						{"id":6,	"encoding":"ubyte",		"values":{"0":"Standart", "1":"Temperature restriction", "2":"Always on", "3":"By room mode", "4":"Pump off"},	"type": "picklist"},
+		"pumpOffOutdoorTemperature":	{"id":7,	"encoding":"short10",	"type": "temperature"}
+	}
+}
