@@ -24,6 +24,6 @@
 		"circulationPumpOnTime":		{"id":6,	"encoding":"uint60K",	"type": "minutes"},
 		"circulationPumpOffTime":		{"id":7,	"encoding":"uint60K",	"type": "minutes"},
 		"economyTemperature":			{"id":8,	"encoding":"short10",	"type": "temperature"},
-		"fillingTime":					{"id":9,	"encoding":"uint1000",	"type": "seconds"},
+		"fillingTime":					{"id":9,	"encoding":"uint60K",	"type": "minutes"},
 	}
 }
