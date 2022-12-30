@@ -21,7 +21,7 @@
 	},
 	"parameters": {
 		"frostProtectionTemperature":	{"id":1,	"encoding":"short10",	"type": "temperature"},
-		"valveRunningTime":				{"id":2,	"encoding":"uint1000",	"type": "seconds"},
+		"valveRunningTime":				{"id":2,	"encoding":"uint1K",	"type": "seconds"},
 		"valveOpenProportionalBand":	{"id":3,	"encoding":"short10",	"type": "temperature"},
 		"valveCloseProportionalBand":	{"id":4,	"encoding":"short10",	"type": "temperature"},
 		"valveBlocking":				{"id":5,	"encoding":"ubyte",		"type": "onOff"},
