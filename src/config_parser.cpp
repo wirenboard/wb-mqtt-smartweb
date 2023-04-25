@@ -329,10 +329,10 @@ void LoadConfig(TConfig& config,
                              configJson,
                              pathToDeviceClassDirectory,
                              classSchema,
-                             TDeviceClassSource::BUILTIN);
+                             TDeviceClassSource::USER);
     LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
                              configJson,
                              pathToBuiltInDeviceClassDirectory,
                              classSchema,
-                             TDeviceClassSource::USER);
+                             TDeviceClassSource::BUILTIN);
 }
