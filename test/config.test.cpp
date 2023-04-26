@@ -153,7 +153,6 @@ TEST_F(TLoadConfigTest, LoadConfig)
     EXPECT_NO_THROW(LoadConfig(config,
                                TestRootDir + "/test_config.json",
                                TestRootDir + "/classes",
-                               TestRootDir + "/builtin_classes",
                                SchemaFile,
                                ClassSchemaFile));
 
