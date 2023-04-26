@@ -1,0 +1,29 @@
+{
+    "class": "POOL",
+    "programType": 19,
+    "functionList": [],
+    "endClass": true,
+    "implements": ["PROGRAM","CONSUMER"],
+    "inputs": {
+	"poolTemperature":		{"id":0, "type": "temperature"},
+	"externalRequest":		{"id":1, "type": "onOff"},
+	"waterLevelLow":		{"id":2, "type": "onOff"},
+	"flowPresenceSensor":	{"id":3, "type": "onOff"},
+    },
+    "outputs": {
+	"circulationPump":	{"id":0, "type": "relay"},
+	"loadPump":			{"id":1, "type": "relay"},
+	"fillingValve":		{"id":2, "type": "relay"}
+    },
+    "parameters": {
+	"comfortTemperature":			{"id":1,	"encoding":"short10",	"type": "temperature"},
+	"currentRequiredTemperature":	{"id":2,	"encoding":"short10", "readOnly":true,	"type": "temperature"},
+	"workMode":						{"id":3,	"encoding":"ubyte", "values":{"0":"Comfort", "1":"Economy", "2":"Schedule", "3":"Standby"},	"type": "picklist"},
+	"schedule":						{"id":4,	"encoding":"schedule1"},
+	"circulationMode":				{"id":5,	"encoding":"ubyte", "values":{"0":"Always On", "1":"Schedule", "2":"Periodic", "3":"Always Off"},	"type": "picklist"},
+	"circulationPumpOnTime":		{"id":6,	"encoding":"uint60K",	"type": "minutes"},
+	"circulationPumpOffTime":		{"id":7,	"encoding":"uint60K",	"type": "minutes"},
+	"economyTemperature":			{"id":8,	"encoding":"short10",	"type": "temperature"},
+	"fillingTime":					{"id":9,	"encoding":"uint60K",	"type": "minutes"},
+    }
+}

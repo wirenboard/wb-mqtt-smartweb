@@ -8,7 +8,7 @@
 	"outputs": {},
 	"parameters": {
 		"requiredTemperature":		{"id":1,	"encoding":"short10",	"type": "temperature", "readOnly":true},
-		"workTime":					{"id":2,	"encoding":"uint60K",	"type": "hours"},
+		"workTime": {"id":2, "encoding":"ushort", "type": "hours"},
 		"powerPriority":			{"id":3,	"encoding":"ubyte", "type": "onOff"},
 		"currentConsumerID":		{"id":4,	"encoding":"ubyte",	"type": "id", "readOnly":true},
 		"externalTemperatureRequestValue":		{"id":5,	"encoding":"short10",	"type": "temperature"},
