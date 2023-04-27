@@ -27,8 +27,8 @@ endif
 COMMON_SRCS := $(shell find $(SRC_DIRS) \( -name *.cpp -or -name *.c \) -and -not -name main.cpp)
 COMMON_OBJS := $(COMMON_SRCS:%=$(BUILD_DIR)/%.o)
 
-LDFLAGS = -lwbmqtt1 -lpthread -lstdc++fs
-CXXFLAGS = -std=c++14 -Wall -Werror -I$(SRC_DIRS) -DWBMQTT_COMMIT="$(GIT_REVISION)" -DWBMQTT_VERSION="$(DEB_VERSION)" -Wno-psabi
+LDFLAGS = -lwbmqtt1 -lpthread
+CXXFLAGS = -std=c++17 -Wall -Werror -I$(SRC_DIRS) -DWBMQTT_COMMIT="$(GIT_REVISION)" -DWBMQTT_VERSION="$(DEB_VERSION)" -Wno-psabi
 CFLAGS = -Wall -I$(SRC_DIR)
 
 ifeq ($(DEBUG),)

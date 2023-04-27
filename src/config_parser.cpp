@@ -1,7 +1,7 @@
 #include "config_parser.h"
 
-#include <experimental/filesystem>
-#include <regex>
+#include <filesystem>
+#include <set>
 
 #include "log.h"
 
@@ -114,8 +114,8 @@ namespace
                 if (p->Type == "temperature" && p->ReadOnly) {
                     p->Codec = std::make_unique<TSensorCodec>();
                 }
-                LOG(WBMQTT::Debug) << "Parameter '" << p->Name << "', " << p->Type 
-                            << ", id " << p->Id 
+                LOG(WBMQTT::Debug) << "Parameter '" << p->Name << "', " << p->Type
+                            << ", id " << p->Id
                             << ", " << p->Codec->GetName()
                             << (p->ReadOnly ? ", read only" : "");
                 programClass->Parameters.insert({p->Id, p});
@@ -127,21 +127,51 @@ namespace
         return orderBase + maxId + 1;
     }
 
-    /// Сalls a function for each file in a directory
-    /// \param dirPath directory to scan
-    /// \param fileExtension file extension for which the function is called.<br>
-    ///                      Includes a dot at the beginning of a line.<br>
-    ///                      For example: ".json"
-    /// \param scanFunc function to be called for files
-    void ScanFileInDirectory(const std::experimental::filesystem::path& dirPath,
-                             const std::string& fileExtension,
-                             const std::function<void(const std::experimental::filesystem::path& filePath)>& scanFunc)
+    /**
+     * @brief Exception class thrown on open directory failure.
+     */
+    class TNoDirError : public std::runtime_error
     {
-        for (const auto& entry: std::experimental::filesystem::directory_iterator(dirPath)) {
-            if (std::experimental::filesystem::is_regular_file(entry) && (entry.path().extension() == fileExtension)) {
-                scanFunc(entry.path());
+    public:
+        TNoDirError(const std::string& msg) : std::runtime_error(msg) {}
+    };
+
+    void IterateDir(const std::string& dirName, std::function<bool(const std::string&)> fn)
+    {
+        try {
+            const std::filesystem::path dirPath{dirName};
+            std::set<std::filesystem::path> sortedByPath;
+
+            for (auto& entry: std::filesystem::directory_iterator(dirPath))
+                sortedByPath.insert(entry.path());
+
+            for (auto& filePath: sortedByPath) {
+                const auto filenameStr = filePath.filename().string();
+                if (fn(filenameStr)) {
+                    return;
+                }
             }
+        } catch (std::filesystem::filesystem_error const& ex) {
+            throw TNoDirError(ex.what());
         }
+    }
+
+    std::string IterateDirByPattern(const std::string&                      dirName,
+                                    const std::string&                      pattern,
+                                    std::function<bool(const std::string&)> fn)
+    {
+        std::string res;
+        IterateDir(dirName, [&](const auto& name) {
+            if (name.find(pattern) != std::string::npos) {
+                std::string d(dirName + "/" + name);
+                if (fn(d)) {
+                    res = d;
+                    return true;
+                }
+            }
+            return false;
+        });
+        return res;
     }
 
     void LoadSmartWebToMqttConfig(TSmartWebToMqttConfig& config,
@@ -155,11 +185,9 @@ namespace
         }
 
         try {
-            const std::experimental::filesystem::path dirPath{classesDir};
-
-            ScanFileInDirectory(dirPath,
+            IterateDirByPattern(classesDir,
                                 ".json",
-                                [classSchema, &config, source](const std::experimental::filesystem::path& filePath) {
+                                [classSchema, &config, source](const std::string& filePath) {
                                     try {
                                         auto classJson = WBMQTT::JSON::Parse(filePath);
                                         WBMQTT::JSON::Validate(classJson, classSchema);
@@ -167,8 +195,10 @@ namespace
                                     } catch (const std::exception& e) {
                                         LOG(WBMQTT::Error) << "Failed to parse " << filePath << "\n" << e.what();
                                     }
+
+                                    return false;  // continue scan
                                 });
-        } catch (std::experimental::filesystem::filesystem_error const& ex) {
+        } catch (std::filesystem::filesystem_error const& ex) {
             LOG(WBMQTT::Error) << "Cannot open " << classesDir << " directory: " << ex.what();
             return;
         }
