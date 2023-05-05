@@ -1,14 +1,13 @@
 #pragma once
 
-#include <stdint.h>
 #include <limits>
+#include <stdint.h>
 
 namespace SmartWeb
 {
     const int16_t SENSOR_SHORT_VALUE = -32768;
-    const int16_t SENSOR_OPEN_VALUE  = -32767;
-    const int16_t SENSOR_UNDEFINED   = -32766;
-
+    const int16_t SENSOR_OPEN_VALUE = -32767;
+    const int16_t SENSOR_UNDEFINED = -32766;
 
     enum E_MessageFormat : uint8_t
     {
@@ -19,46 +18,48 @@ namespace SmartWeb
     enum E_ProgramType : uint8_t
     {
         PT_CAN_PROGRAM_TYPE_UNDEFINED = 0,
-        PT_PROGRAM                    = 1,
-        PT_OUTDOOR_SENSOR             = 2,
-        PT_CONSUMER                   = 3,
-        PT_CASCADE_MANAGER            = 4,
-        PT_ROOM_DEVICE                = 5,
-        PT_TEMPERATURE_SOURCE         = 6,
-        PT_HEAT_ACCUMULATOR           = 7,
-        PT_EXTENDED_CONTROLLER        = 8,
-        PT_EXTENSION_CONTROLLER       = 9,
-        PT_MONITORING_DEVICE          = 10,
-        PT_CONTROLLER                 = 11,
-        PT_CIRCUIT                    = 12,
-        PT_SCHEDULE                   = 13,
-        PT_HEATING_CIRCUIT            = 14,
-        PT_DIRECT_CIRCUIT             = 15,
-        PT_DHW                        = 16,
-        PT_FLOW_THROUGH_DHW           = 17,
-        PT_TEMPERATURE_GENERATOR      = 18,
-        PT_POOL                       = 19,
-        PT_THERMOSTAT                 = 20,
-        PT_SNOWMELT                   = 21,
-        PT_REMOTE_CONTROL             = 22,
-        PT_BOILER                     = 23,
-        PT_CHILLER                    = 24,
-        PT_SOLAR_COLLECTOR            = 25,
-        PT_VENTILATION                = 26,
-        PT_GENERIC_RELAY              = 27,
-        PT_ALARM                      = 28
+        PT_PROGRAM = 1,
+        PT_OUTDOOR_SENSOR = 2,
+        PT_CONSUMER = 3,
+        PT_CASCADE_MANAGER = 4,
+        PT_ROOM_DEVICE = 5,
+        PT_TEMPERATURE_SOURCE = 6,
+        PT_HEAT_ACCUMULATOR = 7,
+        PT_EXTENDED_CONTROLLER = 8,
+        PT_EXTENSION_CONTROLLER = 9,
+        PT_MONITORING_DEVICE = 10,
+        PT_CONTROLLER = 11,
+        PT_CIRCUIT = 12,
+        PT_SCHEDULE = 13,
+        PT_HEATING_CIRCUIT = 14,
+        PT_DIRECT_CIRCUIT = 15,
+        PT_DHW = 16,
+        PT_FLOW_THROUGH_DHW = 17,
+        PT_TEMPERATURE_GENERATOR = 18,
+        PT_POOL = 19,
+        PT_THERMOSTAT = 20,
+        PT_SNOWMELT = 21,
+        PT_REMOTE_CONTROL = 22,
+        PT_BOILER = 23,
+        PT_CHILLER = 24,
+        PT_SOLAR_COLLECTOR = 25,
+        PT_VENTILATION = 26,
+        PT_GENERIC_RELAY = 27,
+        PT_ALARM = 28
     };
 
     enum E_MessageType : uint8_t
     {
-        MT_MSG_REQUEST  = 0,
-        MT_RESERVED     = 1,
+        MT_MSG_REQUEST = 0,
+        MT_RESERVED = 1,
         MT_MSG_RESPONSE = 2,
-        MT_MSG_ERROR    = 3,
+        MT_MSG_ERROR = 3,
     };
 
-    struct TMappingPoint {
-        enum {
+    struct TMappingPoint
+    {
+        enum
+        {
             CHANNEL_SENSOR_LOCAL = 0,
             CHANNEL_RELAY_LOCAL,
             CHANNEL_SENSOR,
@@ -68,11 +69,13 @@ namespace SmartWeb
             //	CHANNEL_RESERVED,
             CHANNEL_UNDEFINED = 7,
         };
-        union {
-            struct {
+        union
+        {
+            struct
+            {
                 uint8_t hostID;
                 uint8_t channelID : 5;
-                uint8_t type      : 3;
+                uint8_t type : 3;
             };
             uint8_t rawID[2];
             uint16_t raw;
@@ -113,7 +116,7 @@ namespace SmartWeb
                 RESET_TO_DEFAULTS,
                 RESET_PROGRAMS
 
-                //add new functions here
+                // add new functions here
             };
         }
 
@@ -153,7 +156,7 @@ namespace SmartWeb
                 SENSOR_CALIBRATION,
                 DISCRETTE_OUTPUT_SIGNAL_FORM
 
-                //add new parameters here
+                // add new parameters here
             };
         }
     }
@@ -185,7 +188,7 @@ namespace SmartWeb
                 SENSOR_MAPPING,
                 RELAY_MAPPING
 
-                //add new parameters here
+                // add new parameters here
             };
         }
     }
@@ -208,7 +211,8 @@ namespace SmartWeb
         }
     }
 
-    union TCanHeader {
+    union TCanHeader
+    {
         uint32_t raw;
         struct
         {
@@ -216,25 +220,30 @@ namespace SmartWeb
             uint8_t program_id;
             uint8_t function_id;
             uint8_t message_format : 3;
-            uint8_t message_type   : 2;
-            uint8_t unused         : 3;
+            uint8_t message_type : 2;
+            uint8_t unused : 3;
         } rec;
     };
 
-    union TParameterData {
+    union TParameterData
+    {
         uint64_t raw;
         uint32_t raw_info;
 
-        struct {
+        struct
+        {
             uint8_t program_type;
             uint8_t parameter_id;
-            union {
+            union
+            {
                 uint8_t value[6];
-                struct {
-                    uint8_t	index;
+                struct
+                {
+                    uint8_t index;
                     uint8_t value[5];
                 } indexed_parameter;
-                struct {
+                struct
+                {
                     uint8_t indexN;
                     uint8_t indexM;
                     uint8_t value[4];
@@ -243,16 +252,21 @@ namespace SmartWeb
         };
     };
 
-    union TParameterInfo {
+    union TParameterInfo
+    {
         uint32_t raw;
-        struct {
+        struct
+        {
             uint8_t program_type;
             uint8_t parameter_id;
-            union {
-                struct {
-                    uint8_t	index;
+            union
+            {
+                struct
+                {
+                    uint8_t index;
                 };
-                struct {
+                struct
+                {
                     uint8_t indexN;
                     uint8_t indexM;
                 };
@@ -260,12 +274,15 @@ namespace SmartWeb
         };
     };
 
-    namespace SensorData {
-        inline int16_t FromDouble(double value) {
+    namespace SensorData
+    {
+        inline int16_t FromDouble(double value)
+        {
             return static_cast<int16_t>(value * 10);
         }
 
-        inline double ToDouble(int16_t value) {
+        inline double ToDouble(int16_t value)
+        {
             if (value == SENSOR_UNDEFINED) {
                 return std::numeric_limits<double>::quiet_NaN();
             }

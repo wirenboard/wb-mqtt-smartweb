@@ -11,8 +11,8 @@
 namespace
 {
     const int16_t SENSOR_SHORT_VALUE = -32768;
-    const int16_t SENSOR_OPEN_VALUE  = -32767;
-    const int16_t SENSOR_UNDEFINED   = -32766;
+    const int16_t SENSOR_OPEN_VALUE = -32767;
+    const int16_t SENSOR_UNDEFINED = -32766;
 }
 
 TEnumCodec::TEnumCodec(const std::map<uint8_t, std::string>& values): Values(values)
@@ -56,7 +56,7 @@ std::string TSensorCodec::Decode(const uint8_t* buf) const
     if (v == SENSOR_SHORT_VALUE || v == SENSOR_OPEN_VALUE || v == SENSOR_UNDEFINED) {
         throw std::runtime_error("sensor error " + std::to_string(v));
     }
-    return WBMQTT::FormatFloat(v/10.0);
+    return WBMQTT::FormatFloat(v / 10.0);
 }
 
 std::vector<uint8_t> TSensorCodec::Encode(const std::string& value) const
@@ -102,7 +102,7 @@ std::string TPwmCodec::Decode(const uint8_t* buf) const
     if (buf[0] == 255) {
         return "100";
     }
-    return WBMQTT::FormatFloat(buf[0]/2.54);
+    return WBMQTT::FormatFloat(buf[0] / 2.54);
 }
 
 std::vector<uint8_t> TPwmCodec::Encode(const std::string& value) const
@@ -131,21 +131,28 @@ std::string TOutputCodec::GetName() const
 }
 
 TSmartWebToMqttGateway::TSmartWebToMqttGateway(const TSmartWebToMqttConfig& config,
-                                               std::shared_ptr<CAN::IPort>  canPort,
-                                               WBMQTT::PDeviceDriver        driver)
-    : CanPort(canPort), Config(config), Driver(driver), RequestIndex(0), Scheduler(MakeSimpleThreadedScheduler("SW to MQTT"))
+                                               std::shared_ptr<CAN::IPort> canPort,
+                                               WBMQTT::PDeviceDriver driver)
+    : CanPort(canPort),
+      Config(config),
+      Driver(driver),
+      RequestIndex(0),
+      Scheduler(MakeSimpleThreadedScheduler("SW to MQTT"))
 {
-    EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this](const WBMQTT::TControlOnValueEvent& event){
+    EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this](const WBMQTT::TControlOnValueEvent& event) {
         try {
             auto param = event.Control->GetUserData().As<TSmartWebParameterControl>();
             auto frame = MakeSetParameterValueRequest(param, event.RawValue);
             CanPort->Send(frame);
             print_frame(DebugSwToMqtt, frame, "Set value request");
-        } catch(const std::exception& e) {
+        } catch (const std::exception& e) {
             ErrorSwToMqtt.Log() << "Set value request: " << e.what();
         }
     });
-    Scheduler->AddTask(MakePeriodicTask(config.PollInterval, [this]() { this->HandleMapping(); }, "SmartWeb->MQTT task"));
+    Scheduler->AddTask(MakePeriodicTask(
+        config.PollInterval,
+        [this]() { this->HandleMapping(); },
+        "SmartWeb->MQTT task"));
     CanPort->AddHandler(this);
 }
 
@@ -171,14 +178,16 @@ bool TSmartWebToMqttGateway::Handle(const CAN::TFrame& frame)
         return false;
     }
 
-    if (   header->rec.program_type == SmartWeb::PT_PROGRAM 
-        && header->rec.function_id == SmartWeb::Program::Function::I_AM_PROGRAM) {
+    if (header->rec.program_type == SmartWeb::PT_PROGRAM &&
+        header->rec.function_id == SmartWeb::Program::Function::I_AM_PROGRAM)
+    {
         AddProgram(frame);
         return true;
     }
 
-    if (   header->rec.program_type == SmartWeb::PT_REMOTE_CONTROL
-        && header->rec.function_id == SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE) {
+    if (header->rec.program_type == SmartWeb::PT_REMOTE_CONTROL &&
+        header->rec.function_id == SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE)
+    {
         HandleGetValueResponse(frame);
         return true;
     }
@@ -199,10 +208,10 @@ void TSmartWebToMqttGateway::HandleMapping()
         }
         frame = Requests[RequestIndex];
     }
-    try{
+    try {
         CanPort->Send(frame);
         print_frame(DebugSwToMqtt, frame, "Send request");
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         print_frame(ErrorSwToMqtt, frame, std::string("Send request: ") + e.what());
     }
     ++RequestIndex;
@@ -219,38 +228,37 @@ CAN::TFrame MakeSetParameterValueRequest(const TSmartWebParameterControl& param,
         memcpy(pd.value, bytes.data(), bytes.size());
         frame.can_dlc = bytes.size() + 2;
         memcpy(frame.data, &pd.raw, frame.can_dlc);
-    } catch(std::exception& e) {
-        throw std::runtime_error( "Can't encode '" + value 
-                   + "' for '" + param.Parameter->ProgramClass->Name 
-                   + "'(" + std::to_string(int(param.ProgramId)) + "):'" + param.Parameter->Name + "'");
+    } catch (std::exception& e) {
+        throw std::runtime_error("Can't encode '" + value + "' for '" + param.Parameter->ProgramClass->Name + "'(" +
+                                 std::to_string(int(param.ProgramId)) + "):'" + param.Parameter->Name + "'");
     }
     SmartWeb::TCanHeader header{0};
     header.rec.program_type = SmartWeb::PT_REMOTE_CONTROL;
-    header.rec.program_id   = param.ProgramId;
-    header.rec.function_id  = SmartWeb::RemoteControl::Function::SET_PARAMETER_VALUE;
+    header.rec.program_id = param.ProgramId;
+    header.rec.function_id = SmartWeb::RemoteControl::Function::SET_PARAMETER_VALUE;
     header.rec.message_type = SmartWeb::MT_MSG_REQUEST;
     frame.can_id = header.raw | CAN_EFF_FLAG;
     return frame;
 }
 
-void AddRequests(std::vector<CAN::TFrame>&                                           requests,
-                 const std::string&                                                  programType,
-                 const TSmartWebClass&                                               cl,
-                 uint8_t                                                             programId,
+void AddRequests(std::vector<CAN::TFrame>& requests,
+                 const std::string& programType,
+                 const TSmartWebClass& cl,
+                 uint8_t programId,
                  const std::unordered_map<uint8_t, std::shared_ptr<TSmartWebClass>>& classes)
 {
     CAN::TFrame frame{0};
     SmartWeb::TCanHeader header{0};
     header.rec.program_type = SmartWeb::PT_REMOTE_CONTROL;
-    header.rec.program_id   = programId;
-    header.rec.function_id  = SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE;
+    header.rec.program_id = programId;
+    header.rec.function_id = SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE;
     header.rec.message_type = SmartWeb::MT_MSG_REQUEST;
     frame.can_id = header.raw | CAN_EFF_FLAG;
 
     SmartWeb::TParameterData pd;
     pd.program_type = SmartWeb::PT_PROGRAM;
     pd.parameter_id = SmartWeb::RemoteControl::Parameters::SENSOR;
-    frame.can_dlc   = 3;
+    frame.can_dlc = 3;
     for (const auto& i: cl.Inputs) {
         pd.indexed_parameter.index = i.first;
         memcpy(frame.data, &pd.raw, frame.can_dlc);
@@ -266,7 +274,7 @@ void AddRequests(std::vector<CAN::TFrame>&                                      
     }
 
     pd.program_type = cl.Type;
-    frame.can_dlc   = 2;
+    frame.can_dlc = 2;
     for (const auto& p: cl.Parameters) {
         pd.parameter_id = p.first;
         memcpy(frame.data, &pd.raw, frame.can_dlc);
@@ -299,26 +307,25 @@ void TSmartWebToMqttGateway::AddProgram(const CAN::TFrame& frame)
         print_frame(DebugSwToMqtt, frame, "Unknown program type");
         return;
     }
-    InfoSwToMqtt.Log() << "New program '" << cl->second->Name <<"':" << (int)header->rec.program_id << " is found";
+    InfoSwToMqtt.Log() << "New program '" << cl->second->Name << "':" << (int)header->rec.program_id << " is found";
     KnownPrograms.insert({header->rec.program_id, cl->second.get()});
     std::unique_lock<std::mutex> lk(RequestMutex);
     AddRequests(Requests, cl->second->Name, *cl->second, header->rec.program_id, Config.Classes);
 }
 
-WBMQTT::TControlArgs TSmartWebToMqttGateway::MakeControlArgs(uint8_t                   programId,
-                                                             const TSmartWebParameter& param, 
-                                                             const std::string&        value,
-                                                             bool                      error)
+WBMQTT::TControlArgs TSmartWebToMqttGateway::MakeControlArgs(uint8_t programId,
+                                                             const TSmartWebParameter& param,
+                                                             const std::string& value,
+                                                             bool error)
 {
-    const std::unordered_map<std::string, std::string> types({
-        {"temperature", "temperature"},
-        {"humidity",    "rel_humidity"},
-        {"onOff",       "switch"},
-        {"relay",       "switch"},
-        {"PWM",         "range"},
-        {"%",           "range"},
-        {"id",          "text"},
-        {"picklist",    "text"}});
+    const std::unordered_map<std::string, std::string> types({{"temperature", "temperature"},
+                                                              {"humidity", "rel_humidity"},
+                                                              {"onOff", "switch"},
+                                                              {"relay", "switch"},
+                                                              {"PWM", "range"},
+                                                              {"%", "range"},
+                                                              {"id", "text"},
+                                                              {"picklist", "text"}});
 
     WBMQTT::TControlArgs res;
     res.SetId(param.Name);
@@ -328,8 +335,8 @@ WBMQTT::TControlArgs TSmartWebToMqttGateway::MakeControlArgs(uint8_t            
     res.SetType((t != types.end()) ? t->second : "value");
     if (!param.ReadOnly) {
         TSmartWebParameterControl pc;
-        pc.ProgramId   = programId;
-        pc.Parameter   = &param;
+        pc.ProgramId = programId;
+        pc.Parameter = &param;
         res.SetUserData(pc);
     }
     if (param.Type == "PWM" || param.Type == "%") {
@@ -349,9 +356,9 @@ WBMQTT::TControlArgs TSmartWebToMqttGateway::MakeControlArgs(uint8_t            
 }
 
 void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_ptr<TSmartWebParameter>>& params,
-                                          uint8_t                                                        parameterId,
-                                          const uint8_t*                                                 data,
-                                          uint8_t                                                        programId)
+                                          uint8_t parameterId,
+                                          const uint8_t* data,
+                                          uint8_t programId)
 {
     auto p = params.find(parameterId);
     if (p == params.end()) {
@@ -362,20 +369,19 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
     bool error = false;
     try {
         res = p->second->Codec->Decode(data);
-    } catch(const std::exception& e) {
-        WarnSwToMqtt.Log() << "Error reading '" << p->second->ProgramClass->Name << "':" << (int)programId << " " << p->second->Name << ": " << e.what();
+    } catch (const std::exception& e) {
+        WarnSwToMqtt.Log() << "Error reading '" << p->second->ProgramClass->Name << "':" << (int)programId << " "
+                           << p->second->Name << ": " << e.what();
         error = true;
     }
     std::string deviceName("sw " + p->second->ProgramClass->Name + " " + std::to_string(programId));
-    try
-    {
+    try {
         auto tx = Driver->BeginTx();
         WBMQTT::PLocalDevice device(std::dynamic_pointer_cast<WBMQTT::TLocalDevice>(tx->GetDevice(deviceName)));
         if (!device) {
-            device = tx->CreateDevice(WBMQTT::TLocalDeviceArgs{}
-                .SetId(deviceName)
-                .SetTitle(deviceName)
-                .SetIsVirtual(true)).GetValue();
+            device =
+                tx->CreateDevice(WBMQTT::TLocalDeviceArgs{}.SetId(deviceName).SetTitle(deviceName).SetIsVirtual(true))
+                    .GetValue();
             DeviceIds.push_back(device->GetId());
         }
         auto control = device->GetControl(p->second->Name);
@@ -388,7 +394,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
         } else {
             device->CreateControl(tx, MakeControlArgs(programId, *p->second, res, error)).GetValue();
         }
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         ErrorSwToMqtt.Log() << e.what();
     }
 }
@@ -406,11 +412,17 @@ void TSmartWebToMqttGateway::HandleGetValueResponse(const CAN::TFrame& frame)
     SmartWeb::TParameterData* data = (SmartWeb::TParameterData*)&frame.data;
     if (data->program_type == SmartWeb::PT_PROGRAM) {
         if (data->parameter_id == SmartWeb::RemoteControl::Parameters::SENSOR) {
-            SetParameter(cl->second->Inputs, data->indexed_parameter.index, data->indexed_parameter.value, header->rec.program_id);
+            SetParameter(cl->second->Inputs,
+                         data->indexed_parameter.index,
+                         data->indexed_parameter.value,
+                         header->rec.program_id);
             return;
         }
         if (data->parameter_id == SmartWeb::RemoteControl::Parameters::OUTPUT) {
-            SetParameter(cl->second->Outputs, data->indexed_parameter.index, data->indexed_parameter.value, header->rec.program_id);
+            SetParameter(cl->second->Outputs,
+                         data->indexed_parameter.index,
+                         data->indexed_parameter.value,
+                         header->rec.program_id);
             return;
         }
         DebugSwToMqtt.Log() << "Unknown parameter id: " << (int)data->parameter_id;

@@ -1,4 +1,3 @@
-.vscode
 *.o
 wb-mqtt-smartweb
 *.core
@@ -17,3 +16,7 @@ build/
 
 # CLion configs and generated files
 .idea
+
+# Visual Studio Code
+.vscode
+.devcontainer

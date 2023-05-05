@@ -3,12 +3,13 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-#include <wblib/testing/testlog.h>
 #include <wblib/json_utils.h>
+#include <wblib/testing/testlog.h>
 
 using namespace WBMQTT;
 
-namespace {
+namespace
+{
 
     struct TestClassParameterSample
     {
@@ -22,7 +23,7 @@ namespace {
     };
 }
 
-class TLoadConfigTest : public Testing::TLoggedFixture
+class TLoadConfigTest: public Testing::TLoggedFixture
 {
 protected:
     std::string TestRootDir;
@@ -71,7 +72,8 @@ TEST_F(TLoadConfigTest, ClassValidation)
     }
 }
 
-TEST_F(TLoadConfigTest, SmartWebToMqttConfigWoDat) {
+TEST_F(TLoadConfigTest, SmartWebToMqttConfigWoDat)
+{
     auto classJson = WBMQTT::JSON::Parse(TestRootDir + "/classes/ROOM_DEVICE.json");
     TSmartWebToMqttConfig config;
     LoadSmartWebClass(config, classJson, TDeviceClassSource::USER);
@@ -87,62 +89,59 @@ TEST_F(TLoadConfigTest, SmartWebToMqttConfigWoDat) {
     EXPECT_EQ("PROGRAM", *parentClassIt);
 }
 
-TEST_F(TLoadConfigTest, SmartWebToMqttConfigInputs) {
+TEST_F(TLoadConfigTest, SmartWebToMqttConfigInputs)
+{
     auto config = GetTestConfig();
     const auto smartWebClass = config->Classes.begin()->second;
 
-    EXPECT_EQ(7 ,smartWebClass->Inputs.size());
+    EXPECT_EQ(7, smartWebClass->Inputs.size());
     auto input = smartWebClass->Inputs.at(2);
 
-    TestClassParameterSample sample = {
-        .id = 2,
-        .name = "floorT",
-        .type = "temperature",
-        .order = 2,
-        .programClassName = "ROOM_DEVICE",
-        .codecName = "TSensorCodec",
-        .readOnly = true
-    };
+    TestClassParameterSample sample = {.id = 2,
+                                       .name = "floorT",
+                                       .type = "temperature",
+                                       .order = 2,
+                                       .programClassName = "ROOM_DEVICE",
+                                       .codecName = "TSensorCodec",
+                                       .readOnly = true};
 
     ParameterEqHelper(sample, *input);
 }
 
-TEST_F(TLoadConfigTest, SmartWebToMqttConfigOutputs) {
+TEST_F(TLoadConfigTest, SmartWebToMqttConfigOutputs)
+{
     auto config = GetTestConfig();
     const auto smartWebClass = config->Classes.begin()->second;
 
-    EXPECT_EQ(7 ,smartWebClass->Outputs.size());
+    EXPECT_EQ(7, smartWebClass->Outputs.size());
     auto output = smartWebClass->Outputs.at(2);
 
-    TestClassParameterSample sample = {
-        .id = 2,
-        .name = "addValve",
-        .type = "relay",
-        .order = 9,
-        .programClassName = "ROOM_DEVICE",
-        .codecName = "TOutputCodec",
-        .readOnly = true
-    };
+    TestClassParameterSample sample = {.id = 2,
+                                       .name = "addValve",
+                                       .type = "relay",
+                                       .order = 9,
+                                       .programClassName = "ROOM_DEVICE",
+                                       .codecName = "TOutputCodec",
+                                       .readOnly = true};
 
     ParameterEqHelper(sample, *output);
 }
 
-TEST_F(TLoadConfigTest, SmartWebToMqttConfigParameters) {
+TEST_F(TLoadConfigTest, SmartWebToMqttConfigParameters)
+{
     auto config = GetTestConfig();
     const auto smartWebClass = config->Classes.begin()->second;
 
-    EXPECT_EQ(34 ,smartWebClass->Parameters.size());
+    EXPECT_EQ(34, smartWebClass->Parameters.size());
     auto parameter = smartWebClass->Parameters.at(2);
 
-    TestClassParameterSample sample = {
-        .id = 2,
-        .name = "roomReducedTemperature",
-        .type = "temperature",
-        .order = 16,
-        .programClassName = "ROOM_DEVICE",
-        .codecName = "TIntCodec<signed 2, 10>",
-        .readOnly = false
-    };
+    TestClassParameterSample sample = {.id = 2,
+                                       .name = "roomReducedTemperature",
+                                       .type = "temperature",
+                                       .order = 16,
+                                       .programClassName = "ROOM_DEVICE",
+                                       .codecName = "TIntCodec<signed 2, 10>",
+                                       .readOnly = false};
 
     ParameterEqHelper(sample, *parameter);
 }

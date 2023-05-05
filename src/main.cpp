@@ -4,12 +4,12 @@
 
 #include <getopt.h>
 
-#include "exceptions.h"
+#include "CanPort.h"
 #include "MqttToSmartWebGateway.h"
 #include "SmartWebToMqttGateway.h"
-#include "CanPort.h"
-#include "log.h"
 #include "config_parser.h"
+#include "exceptions.h"
+#include "log.h"
 
 #define STR(x) #x
 #define XSTR(x) STR(x)
@@ -38,52 +38,52 @@ namespace
     void ApplyDebugParam(int debugLevel)
     {
         switch (debugLevel) {
-        case 0:
-            break;
-        case -1:
-            ErrorMqttToSw.SetEnabled(false);
-            WarnMqttToSw.SetEnabled(false);
-            InfoMqttToSw.SetEnabled(false);
-            DebugMqttToSw.SetEnabled(false);
-            break;
-        case -2:
-            ErrorSwToMqtt.SetEnabled(false);
-            WarnSwToMqtt.SetEnabled(false);
-            InfoSwToMqtt.SetEnabled(false);
-            DebugSwToMqtt.SetEnabled(false);
-            break;
-        case -3:
-            WBMQTT::Info.SetEnabled(false);
-            break;
-        case -4:
-            ErrorMqttToSw.SetEnabled(false);
-            WarnMqttToSw.SetEnabled(false);
-            InfoMqttToSw.SetEnabled(false);
-            DebugMqttToSw.SetEnabled(false);
-            ErrorSwToMqtt.SetEnabled(false);
-            WarnSwToMqtt.SetEnabled(false);
-            InfoSwToMqtt.SetEnabled(false);
-            DebugSwToMqtt.SetEnabled(false);
-            WBMQTT::Info.SetEnabled(false);
-            break;
-        case 1:
-            DebugMqttToSw.SetEnabled(true);
-            break;
-        case 2:
-            DebugSwToMqtt.SetEnabled(true);
-            break;
-        case 3:
-            WBMQTT::Debug.SetEnabled(true);
-            break;
-        case 4:
-            DebugMqttToSw.SetEnabled(true);
-            DebugSwToMqtt.SetEnabled(true);
-            WBMQTT::Debug.SetEnabled(true);
-            break;
-        default:
-            cout << "Invalid -d parameter value " << debugLevel << endl;
-            PrintUsage();
-            exit(2);
+            case 0:
+                break;
+            case -1:
+                ErrorMqttToSw.SetEnabled(false);
+                WarnMqttToSw.SetEnabled(false);
+                InfoMqttToSw.SetEnabled(false);
+                DebugMqttToSw.SetEnabled(false);
+                break;
+            case -2:
+                ErrorSwToMqtt.SetEnabled(false);
+                WarnSwToMqtt.SetEnabled(false);
+                InfoSwToMqtt.SetEnabled(false);
+                DebugSwToMqtt.SetEnabled(false);
+                break;
+            case -3:
+                WBMQTT::Info.SetEnabled(false);
+                break;
+            case -4:
+                ErrorMqttToSw.SetEnabled(false);
+                WarnMqttToSw.SetEnabled(false);
+                InfoMqttToSw.SetEnabled(false);
+                DebugMqttToSw.SetEnabled(false);
+                ErrorSwToMqtt.SetEnabled(false);
+                WarnSwToMqtt.SetEnabled(false);
+                InfoSwToMqtt.SetEnabled(false);
+                DebugSwToMqtt.SetEnabled(false);
+                WBMQTT::Info.SetEnabled(false);
+                break;
+            case 1:
+                DebugMqttToSw.SetEnabled(true);
+                break;
+            case 2:
+                DebugSwToMqtt.SetEnabled(true);
+                break;
+            case 3:
+                WBMQTT::Debug.SetEnabled(true);
+                break;
+            case 4:
+                DebugMqttToSw.SetEnabled(true);
+                DebugSwToMqtt.SetEnabled(true);
+                WBMQTT::Debug.SetEnabled(true);
+                break;
+            default:
+                cout << "Invalid -d parameter value " << debugLevel << endl;
+                PrintUsage();
+                exit(2);
         }
     }
 
@@ -118,58 +118,54 @@ namespace
              << "  -T      prefix     MQTT topic prefix (optional)" << endl;
     }
 
-    void ParseCommadLine(int                   argc,
-                         char*                 argv[],
-                         TMosquittoMqttConfig& mqttConfig,
-                         string&               configFile,
-                         string&               ifname)
+    void ParseCommadLine(int argc, char* argv[], TMosquittoMqttConfig& mqttConfig, string& configFile, string& ifname)
     {
         int c;
 
         while ((c = getopt(argc, argv, "d:c:g:p:h:H:T:u:P:")) != -1) {
             switch (c) {
-            case 'd':
-                ApplyDebugParam(stoi(optarg));
-                break;
-            case 'c':
-                configFile = optarg;
-                break;
-            case 'p':
-                mqttConfig.Port = stoi(optarg);
-                break;
-            case 'h':
-            case 'H':
-                mqttConfig.Host = optarg;
-                break;
-            case 'T':
-                mqttConfig.Prefix = optarg;
-                break;
-            case 'u':
-                mqttConfig.User = optarg;
-                break;
-            case 'P':
-                mqttConfig.Password = optarg;
-                break;
-            case 'i':
-                ifname = optarg;
-                break;
-            default:
-                PrintUsage();
-                exit(2);
+                case 'd':
+                    ApplyDebugParam(stoi(optarg));
+                    break;
+                case 'c':
+                    configFile = optarg;
+                    break;
+                case 'p':
+                    mqttConfig.Port = stoi(optarg);
+                    break;
+                case 'h':
+                case 'H':
+                    mqttConfig.Host = optarg;
+                    break;
+                case 'T':
+                    mqttConfig.Prefix = optarg;
+                    break;
+                case 'u':
+                    mqttConfig.User = optarg;
+                    break;
+                case 'P':
+                    mqttConfig.Password = optarg;
+                    break;
+                case 'i':
+                    ifname = optarg;
+                    break;
+                default:
+                    PrintUsage();
+                    exit(2);
             }
         }
     }
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     string configFile(CONFIG_FULL_FILE_PATH);
     string ifname("can0");
     TConfig config;
 
     TPromise<void> initialized;
-    SignalHandling::Handle({ SIGINT, SIGTERM });
-    SignalHandling::OnSignals({ SIGINT, SIGTERM }, [&]{ SignalHandling::Stop(); });
+    SignalHandling::Handle({SIGINT, SIGTERM});
+    SignalHandling::OnSignals({SIGINT, SIGTERM}, [&] { SignalHandling::Stop(); });
     SetThreadName(APP_NAME);
     ParseCommadLine(argc, argv, config.Mqtt, configFile, ifname);
 
@@ -180,7 +176,7 @@ int main(int argc, char *argv[])
         exit(1);
     });
 
-    SignalHandling::SetOnTimeout(DRIVER_STOP_TIMEOUT_S, [&]{
+    SignalHandling::SetOnTimeout(DRIVER_STOP_TIMEOUT_S, [&] {
         LOG(WBMQTT::Error) << "Driver takes too long to stop. Exiting.";
         exit(1);
     });
@@ -202,15 +198,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    try{
-        auto mqtt    = NewMosquittoMqttClient(config.Mqtt);
+    try {
+        auto mqtt = NewMosquittoMqttClient(config.Mqtt);
         auto backend = NewDriverBackend(mqtt);
         auto driver = NewDriver(TDriverArgs{}
-            .SetId(APP_NAME)
-            .SetBackend(backend)
-            .SetUseStorage(true)
-            .SetReownUnknownDevices(true)
-            .SetStoragePath(LIBWBMQTT_DB_FULL_FILE_PATH));
+                                    .SetId(APP_NAME)
+                                    .SetBackend(backend)
+                                    .SetUseStorage(true)
+                                    .SetReownUnknownDevices(true)
+                                    .SetStoragePath(LIBWBMQTT_DB_FULL_FILE_PATH));
 
         driver->StartLoop();
         driver->WaitForReady();

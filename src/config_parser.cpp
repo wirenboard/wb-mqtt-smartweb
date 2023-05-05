@@ -17,13 +17,20 @@ namespace
             if (WBMQTT::StringStartsWith(enc, "schedule")) {
                 throw std::runtime_error("Encoding '" + enc + "' is not supported");
             }
-            if (enc == "byte")     return std::make_unique<TIntCodec<int8_t,   1>>();
-            if (enc == "short")    return std::make_unique<TIntCodec<int16_t,  1>>();
-            if (enc == "short10")  return std::make_unique<TIntCodec<int16_t,  10>>();
-            if (enc == "short100") return std::make_unique<TIntCodec<int16_t,  100>>();
-            if (enc == "ushort")   return std::make_unique<TIntCodec<uint16_t, 1>>();
-            if (enc == "uint1K")   return std::make_unique<TIntCodec<uint32_t, 1000>>();
-            if (enc == "uint60K")  return std::make_unique<TIntCodec<uint32_t, 60000>>();
+            if (enc == "byte")
+                return std::make_unique<TIntCodec<int8_t, 1>>();
+            if (enc == "short")
+                return std::make_unique<TIntCodec<int16_t, 1>>();
+            if (enc == "short10")
+                return std::make_unique<TIntCodec<int16_t, 10>>();
+            if (enc == "short100")
+                return std::make_unique<TIntCodec<int16_t, 100>>();
+            if (enc == "ushort")
+                return std::make_unique<TIntCodec<uint16_t, 1>>();
+            if (enc == "uint1K")
+                return std::make_unique<TIntCodec<uint32_t, 1000>>();
+            if (enc == "uint60K")
+                return std::make_unique<TIntCodec<uint32_t, 60000>>();
             if (enc == "ubyte") {
                 if (data.isMember("values")) {
                     std::map<uint8_t, std::string> values;
@@ -39,15 +46,15 @@ namespace
         return std::make_unique<TIntCodec<int16_t, 10>>(); // default codec
     }
 
-    std::shared_ptr<TSmartWebParameter> LoadParameter(const Json::Value&    param,
-                                                      const std::string&    name,
+    std::shared_ptr<TSmartWebParameter> LoadParameter(const Json::Value& param,
+                                                      const std::string& name,
                                                       const TSmartWebClass* programClass,
-                                                      uint32_t              orderBase)
+                                                      uint32_t orderBase)
     {
         auto p = std::make_shared<TSmartWebParameter>();
-        p->Id    = param["id"].asUInt();
-        p->Name  = name;
-        p->Type  = param.get("type", "value").asString();
+        p->Id = param["id"].asUInt();
+        p->Name = name;
+        p->Type = param.get("type", "value").asString();
         p->ProgramClass = programClass;
         p->Order = orderBase + p->Id;
         return p;
@@ -107,17 +114,15 @@ namespace
                 auto p = LoadParameter(*it, it.name(), programClass, orderBase);
                 p->ReadOnly = false;
                 WBMQTT::JSON::Get((*it), "readOnly", p->ReadOnly);
-                    p->Codec = GetCodec(*it);
+                p->Codec = GetCodec(*it);
                 if (p->Type == "onOff") {
                     p->Codec = std::make_unique<TOnOffSensorCodec>();
                 }
                 if (p->Type == "temperature" && p->ReadOnly) {
                     p->Codec = std::make_unique<TSensorCodec>();
                 }
-                LOG(WBMQTT::Debug) << "Parameter '" << p->Name << "', " << p->Type
-                            << ", id " << p->Id
-                            << ", " << p->Codec->GetName()
-                            << (p->ReadOnly ? ", read only" : "");
+                LOG(WBMQTT::Debug) << "Parameter '" << p->Name << "', " << p->Type << ", id " << p->Id << ", "
+                                   << p->Codec->GetName() << (p->ReadOnly ? ", read only" : "");
                 programClass->Parameters.insert({p->Id, p});
                 maxId = std::max(maxId, p->Id);
             } catch (const std::exception& e) {
@@ -130,10 +135,11 @@ namespace
     /**
      * @brief Exception class thrown on open directory failure.
      */
-    class TNoDirError : public std::runtime_error
+    class TNoDirError: public std::runtime_error
     {
     public:
-        TNoDirError(const std::string& msg) : std::runtime_error(msg) {}
+        TNoDirError(const std::string& msg): std::runtime_error(msg)
+        {}
     };
 
     void IterateDir(const std::string& dirName, std::function<bool(const std::string&)> fn)
@@ -156,8 +162,8 @@ namespace
         }
     }
 
-    std::string IterateDirByPattern(const std::string&                      dirName,
-                                    const std::string&                      pattern,
+    std::string IterateDirByPattern(const std::string& dirName,
+                                    const std::string& pattern,
                                     std::function<bool(const std::string&)> fn)
     {
         std::string res;
@@ -185,19 +191,17 @@ namespace
         }
 
         try {
-            IterateDirByPattern(classesDir,
-                                ".json",
-                                [classSchema, &config, source](const std::string& filePath) {
-                                    try {
-                                        auto classJson = WBMQTT::JSON::Parse(filePath);
-                                        WBMQTT::JSON::Validate(classJson, classSchema);
-                                        LoadSmartWebClass(config, classJson, source);
-                                    } catch (const std::exception& e) {
-                                        LOG(WBMQTT::Error) << "Failed to parse " << filePath << "\n" << e.what();
-                                    }
+            IterateDirByPattern(classesDir, ".json", [classSchema, &config, source](const std::string& filePath) {
+                try {
+                    auto classJson = WBMQTT::JSON::Parse(filePath);
+                    WBMQTT::JSON::Validate(classJson, classSchema);
+                    LoadSmartWebClass(config, classJson, source);
+                } catch (const std::exception& e) {
+                    LOG(WBMQTT::Error) << "Failed to parse " << filePath << "\n" << e.what();
+                }
 
-                                    return false;  // continue scan
-                                });
+                return false; // continue scan
+            });
         } catch (std::filesystem::filesystem_error const& ex) {
             LOG(WBMQTT::Error) << "Cannot open " << classesDir << " directory: " << ex.what();
             return;
@@ -222,15 +226,14 @@ namespace
             for (const auto& sensor: configJson["sensors"]) {
                 const auto& mqtt_channel = sensor["channel"].asString();
                 LoadTiming(res, mqtt_channel, sensor);
-                SmartWeb::TParameterInfo parameter_info {0};
+                SmartWeb::TParameterInfo parameter_info{0};
                 parameter_info.parameter_id = SmartWeb::Controller::Parameters::SENSOR;
                 parameter_info.program_type = SmartWeb::PT_CONTROLLER;
                 parameter_info.index = sensor["sensor_index"].asUInt();
 
                 LOG(WBMQTT::Info) << "Controller: " << (int)res.ProgramId << " map sensor {"
-                        << "parameter_index: " << (int)parameter_info.index << ", "
-                        << "raw " << (int)parameter_info.raw
-                        << "} to {channel: " << mqtt_channel << "};";
+                                  << "parameter_index: " << (int)parameter_info.index << ", "
+                                  << "raw " << (int)parameter_info.raw << "} to {channel: " << mqtt_channel << "};";
 
                 if (res.ParameterMapping.count(parameter_info.raw)) {
                     throw std::runtime_error("Malformed JSON config: duplicate sensor");
@@ -254,17 +257,16 @@ namespace
             for (const auto& parameter: configJson["parameters"]) {
                 const auto& mqtt_channel = parameter["channel"].asString();
                 LoadTiming(res, mqtt_channel, configJson);
-                SmartWeb::TParameterInfo parameter_info {0};
+                SmartWeb::TParameterInfo parameter_info{0};
                 parameter_info.parameter_id = parameter["parameter_id"].asUInt();
                 parameter_info.program_type = parameter["program_type"].asUInt();
                 parameter_info.index = parameter["parameter_index"].asUInt();
 
                 LOG(WBMQTT::Info) << "Controller: " << (int)res.ProgramId << " map parameter {"
-                        << "program_type: " << (int)parameter_info.program_type << ", "
-                        << "parameter_id: " << (int)parameter_info.parameter_id << ", "
-                        << "parameter_index: " << (int)parameter_info.index << ", "
-                        << "raw " << (int)parameter_info.raw
-                        << "} to {channel: " << mqtt_channel << "};";
+                                  << "program_type: " << (int)parameter_info.program_type << ", "
+                                  << "parameter_id: " << (int)parameter_info.parameter_id << ", "
+                                  << "parameter_index: " << (int)parameter_info.index << ", "
+                                  << "raw " << (int)parameter_info.raw << "} to {channel: " << mqtt_channel << "};";
 
                 if (res.ParameterMapping.count(parameter_info.raw)) {
                     throw std::runtime_error("Malformed JSON config: duplicate parameter");
