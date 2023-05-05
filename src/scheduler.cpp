@@ -1,41 +1,43 @@
 #include "scheduler.h"
 
-#include <thread>
-#include <vector>
-#include <mutex>
-#include <condition_variable>
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 #include <wblib/utils.h>
 
-namespace {
+namespace
+{
 
     struct TTaskDescription
     {
         std::chrono::steady_clock::time_point NextRun;
-        std::shared_ptr<ITask>                Task;
+        std::shared_ptr<ITask> Task;
 
-        TTaskDescription(std::chrono::steady_clock::time_point nextRun,
-                         std::shared_ptr<ITask>                task)
-            : NextRun(nextRun), Task(task)
+        TTaskDescription(std::chrono::steady_clock::time_point nextRun, std::shared_ptr<ITask> task)
+            : NextRun(nextRun),
+              Task(task)
         {}
     };
 
     class TSimpleThreadedScheduler: public IScheduler
     {
-        std::thread                   Thread;
+        std::thread Thread;
 
-        std::atomic_bool              Enabled;
-        std::mutex                    TasksMutex;
+        std::atomic_bool Enabled;
+        std::mutex TasksMutex;
         std::vector<TTaskDescription> Tasks;
 
-        std::mutex                    WaitMutex;
-        std::condition_variable       ConditionVariable;
+        std::mutex WaitMutex;
+        std::condition_variable ConditionVariable;
 
-        std::string                   ThreadName;
+        std::string ThreadName;
 
-        void MakeIteration() {
+        void MakeIteration()
+        {
             auto now = std::chrono::steady_clock::now();
             std::unique_lock<std::mutex> tasksLock(TasksMutex);
             if (Tasks.empty()) {
@@ -55,7 +57,9 @@ namespace {
                 }
                 return;
             }
-            std::stable_sort(Tasks.begin(), Tasks.end(), [](const auto& t1, const auto& t2) { return t1.NextRun < t2.NextRun; });
+            std::stable_sort(Tasks.begin(), Tasks.end(), [](const auto& t1, const auto& t2) {
+                return t1.NextRun < t2.NextRun;
+            });
             auto nextRun = Tasks.begin()->NextRun;
             tasksLock.unlock();
             std::unique_lock<std::mutex> waitLock(WaitMutex);
@@ -63,11 +67,11 @@ namespace {
         }
 
     public:
-        TSimpleThreadedScheduler(const std::string& threadName) : Enabled(true), ThreadName(threadName)
+        TSimpleThreadedScheduler(const std::string& threadName): Enabled(true), ThreadName(threadName)
         {
-            Thread = std::thread([&](){
+            Thread = std::thread([&]() {
                 WBMQTT::SetThreadName(ThreadName);
-                while(Enabled.load()) {
+                while (Enabled.load()) {
                     MakeIteration();
                 }
             });
@@ -90,12 +94,15 @@ namespace {
 
     class TPeriodicTask: public ITask
     {
-        std::function<void()>     Fn;
+        std::function<void()> Fn;
         std::chrono::microseconds Period;
-        std::string               Name;
+        std::string Name;
+
     public:
         TPeriodicTask(const std::chrono::microseconds& period, std::function<void()> fn, const std::string& name)
-            : Fn(fn), Period(period), Name(name)
+            : Fn(fn),
+              Period(period),
+              Name(name)
         {}
 
         std::vector<std::shared_ptr<ITask>> Run() override

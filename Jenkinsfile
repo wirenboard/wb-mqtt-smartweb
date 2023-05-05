@@ -1,3 +1,3 @@
 buildDebSbuild defaultTargets: 'bullseye-armhf',
-               defaultRunLintian: false,
-               defaultStyleCheckDirs: ''
+               defaultRunLintian: true,
+               defaultStyleCheckDirs: 'src test'

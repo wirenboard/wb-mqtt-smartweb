@@ -6,7 +6,7 @@
 
 namespace CAN
 {
-    using TFrame     = struct can_frame;
+    using TFrame = struct can_frame;
     using TFrameData = decltype(TFrame::data);
 
     class IFrameHandler
@@ -16,10 +16,10 @@ namespace CAN
 
         /**
          * @brief Must be threadsafe
-         * 
-         * @param frame 
-         * @return true 
-         * @return false 
+         *
+         * @param frame
+         * @return true
+         * @return false
          */
         virtual bool Handle(const TFrame& frame) = 0;
     };
@@ -34,8 +34,8 @@ namespace CAN
 
         /**
          * @brief Must be threadsafe
-         * 
-         * @param frame 
+         *
+         * @param frame
          */
         virtual void Send(const TFrame& frame) = 0;
     };
