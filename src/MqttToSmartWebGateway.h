@@ -41,6 +41,7 @@ struct TChannelState
 {
     TTimePoint SendTimePoint;    // next send timepoint
     TTimePoint SendEndTimePoint; // when to stop sending messages
+    TTimePoint LastSendTimePoint; // last send timepoint
 
     void postpone_send();
     void postpone_send_end();
@@ -68,6 +69,7 @@ public:
 
     void refresh_last_update_timepoint();
     bool is_timed_out() const;
+    TTimePoint get_last_update_timepoint() const;
 };
 
 struct TMqttToSmartWebConfig

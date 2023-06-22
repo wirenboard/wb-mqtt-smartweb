@@ -53,7 +53,10 @@ std::string TSensorCodec::Decode(const uint8_t* buf) const
 {
     int16_t v;
     memcpy(&v, buf, 2);
-    if (v == SENSOR_SHORT_VALUE || v == SENSOR_OPEN_VALUE || v == SENSOR_UNDEFINED) {
+    if (v == SENSOR_UNDEFINED) {
+        throw std::runtime_error("sensor is in undefined state");
+    }
+    if (v == SENSOR_SHORT_VALUE || v == SENSOR_OPEN_VALUE) {
         throw std::runtime_error("sensor error " + std::to_string(v));
     }
     return WBMQTT::FormatFloat(v / 10.0);
