@@ -39,8 +39,8 @@ struct TMqttChannel
 
 struct TChannelState
 {
-    TTimePoint SendTimePoint;    // next send timepoint
-    TTimePoint SendEndTimePoint; // when to stop sending messages
+    TTimePoint SendTimePoint;     // next send timepoint
+    TTimePoint SendEndTimePoint;  // when to stop sending messages
     TTimePoint LastSendTimePoint; // last send timepoint
 
     void postpone_send();
