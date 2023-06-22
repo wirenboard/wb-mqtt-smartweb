@@ -1,15 +1,15 @@
 #include "CanPort.h"
 
 #include <algorithm>
+#include <condition_variable>
 #include <net/if.h>
+#include <queue>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include <queue>
-#include <condition_variable>
 #include <wblib/utils.h>
 
 #include "log.h"
@@ -19,7 +19,7 @@
 namespace
 {
     const auto READ_TIMEOUT_MS = std::chrono::milliseconds(1000); // 1 sec for messages waiting
-    const auto WRITE_TIMEOUT = std::chrono::seconds(5); // 5 sec wait for port ready to write
+    const auto WRITE_TIMEOUT = std::chrono::seconds(5);           // 5 sec wait for port ready to write
 
     template<class TDuration> void setTimeval(timeval& tv, TDuration timeout)
     {
@@ -128,7 +128,6 @@ namespace
                     }
                 }
             });
-
 
             DispatchThread = std::thread([&]() {
                 WBMQTT::SetThreadName("CAN dispatch");

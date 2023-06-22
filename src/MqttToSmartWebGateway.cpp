@@ -15,9 +15,9 @@ namespace
     const auto KEEP_ALIVE_INTERVAL_S = TTimeIntervalS(10); // if nothing else to do - each 10 seconds send I_AM_HERE
     const auto CONNECTION_TIMEOUT_MIN =
         TTimeIntervalMin(10); // after 10 minutes without any messages connection is considered lost
-    const auto SEND_MESSAGES_TIME_M = TTimeIntervalMin(10);       // send value during 10 minutes
+    const auto SEND_MESSAGES_TIME_M = TTimeIntervalMin(10);        // send value during 10 minutes
     const auto SEND_MESSAGES_INTERVAL_MS = TTimeIntervalMs(30000); // interval between messages
-    const auto READ_TIMEOUT_MS = TTimeIntervalMs(1000);           // 1 sec for messages waiting
+    const auto READ_TIMEOUT_MS = TTimeIntervalMs(1000);            // 1 sec for messages waiting
 
     TTimePoint now()
     {
@@ -78,7 +78,7 @@ string TMqttChannel::to_string() const
 
 void TChannelState::postpone_send()
 {
-    LastSendTimePoint = now(); 
+    LastSendTimePoint = now();
     SendTimePoint = LastSendTimePoint + SEND_MESSAGES_INTERVAL_MS;
 }
 
@@ -344,9 +344,9 @@ void TMqttToSmartWebGateway::TaskFn()
 
         if (itDeviceChannel == DriverState.ParameterMapping.end()) {
             DebugMqttToSw.Log() << "[" << (int)DriverState.ProgramId
-                               << "] unmapped parameter: type: " << (int)parameter_data.program_type
-                               << ", id: " << (int)parameter_data.parameter_id
-                               << ", index: " << (int)parameter_data.indexed_parameter.index;
+                                << "] unmapped parameter: type: " << (int)parameter_data.program_type
+                                << ", id: " << (int)parameter_data.parameter_id
+                                << ", index: " << (int)parameter_data.indexed_parameter.index;
         } else {
             DebugMqttToSw.Log() << "[" << (int)DriverState.ProgramId
                                 << "] get parameter: type: " << (int)parameter_data.program_type
@@ -421,9 +421,9 @@ void TMqttToSmartWebGateway::TaskFn()
                 continue; // weird
             }
 
-            auto lastUpdate = DriverState.MqttChannelsTiming
-                                         .at(TMqttChannel::to_string(channel.device, channel.control))
-                                         .get_last_update_timepoint();
+            auto lastUpdate =
+                DriverState.MqttChannelsTiming.at(TMqttChannel::to_string(channel.device, channel.control))
+                    .get_last_update_timepoint();
             if (lastUpdate <= channel.LastSendTimePoint) { // no channel updates
                 if (channel.SendTimePoint > now()) {
                     continue; // too soon
