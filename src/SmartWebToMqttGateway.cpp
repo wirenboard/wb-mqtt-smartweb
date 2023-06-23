@@ -136,33 +136,39 @@ std::string TOutputCodec::GetName() const
 TSmartWebToMqttGateway::TSmartWebToMqttGateway(const TSmartWebToMqttConfig& config,
                                                std::shared_ptr<CAN::IPort> canPort,
                                                WBMQTT::PDeviceDriver driver)
-    : CanPort(canPort),
-      Config(config),
+    : Config(config),
       Driver(driver),
       RequestIndex(0),
       Scheduler(MakeSimpleThreadedScheduler("SW to MQTT"))
 {
-    EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this](const WBMQTT::TControlOnValueEvent& event) {
+    EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this, canPort](const WBMQTT::TControlOnValueEvent& event) {
         try {
             auto param = event.Control->GetUserData().As<TSmartWebParameterControl>();
             auto frame = MakeSetParameterValueRequest(param, event.RawValue);
-            CanPort->Send(frame);
+            canPort->Send(frame);
             print_frame(DebugSwToMqtt, frame, "Set value request");
         } catch (const std::exception& e) {
             ErrorSwToMqtt.Log() << "Set value request: " << e.what();
         }
     });
+
     Scheduler->AddTask(MakePeriodicTask(
         config.PollInterval,
-        [this]() { this->HandleMapping(); },
+        [this, canPort]() { this->HandleMapping(*canPort); },
         "SmartWeb->MQTT task"));
-    CanPort->AddHandler(this);
+
+    CanReader = std::make_unique<TThreadedCanReader>(
+        "SmartWeb->MQTT reader",
+        canPort,
+        100,
+        [this](const CAN::TFrame& frame) { return AcceptFrame(frame); },
+        [this](const CAN::TFrame& frame) { HandleFrame(frame); });
 }
 
 TSmartWebToMqttGateway::~TSmartWebToMqttGateway()
 {
     Scheduler.reset();
-    CanPort->RemoveHandler(this);
+    CanReader.reset();
     Driver->RemoveEventHandler(EventHandler);
     auto tx = Driver->BeginTx();
     for (const auto& d: DeviceIds) {
@@ -170,7 +176,24 @@ TSmartWebToMqttGateway::~TSmartWebToMqttGateway()
     }
 }
 
-bool TSmartWebToMqttGateway::Handle(const CAN::TFrame& frame)
+void TSmartWebToMqttGateway::HandleFrame(const CAN::TFrame& frame)
+{
+    SmartWeb::TCanHeader* header = (SmartWeb::TCanHeader*)&frame.can_id;
+    if (header->rec.program_type == SmartWeb::PT_PROGRAM &&
+        header->rec.function_id == SmartWeb::Program::Function::I_AM_PROGRAM)
+    {
+        AddProgram(frame);
+        return;
+    }
+
+    if (header->rec.program_type == SmartWeb::PT_REMOTE_CONTROL &&
+        header->rec.function_id == SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE)
+    {
+        HandleGetValueResponse(frame);
+    }
+}
+
+bool TSmartWebToMqttGateway::AcceptFrame(const CAN::TFrame& frame) const
 {
     if (!(frame.can_id & CAN_EFF_FLAG)) {
         return false;
@@ -184,21 +207,19 @@ bool TSmartWebToMqttGateway::Handle(const CAN::TFrame& frame)
     if (header->rec.program_type == SmartWeb::PT_PROGRAM &&
         header->rec.function_id == SmartWeb::Program::Function::I_AM_PROGRAM)
     {
-        AddProgram(frame);
         return true;
     }
 
     if (header->rec.program_type == SmartWeb::PT_REMOTE_CONTROL &&
         header->rec.function_id == SmartWeb::RemoteControl::Function::GET_PARAMETER_VALUE)
     {
-        HandleGetValueResponse(frame);
         return true;
     }
 
     return false;
 }
 
-void TSmartWebToMqttGateway::HandleMapping()
+void TSmartWebToMqttGateway::HandleMapping(CAN::IPort& canPort)
 {
     CAN::TFrame frame;
     {
@@ -212,7 +233,7 @@ void TSmartWebToMqttGateway::HandleMapping()
         frame = Requests[RequestIndex];
     }
     try {
-        CanPort->Send(frame);
+        canPort.Send(frame);
         print_frame(DebugSwToMqtt, frame, "Send request");
     } catch (const std::exception& e) {
         print_frame(ErrorSwToMqtt, frame, std::string("Send request: ") + e.what());

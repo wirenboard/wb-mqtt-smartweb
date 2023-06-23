@@ -30,7 +30,7 @@ namespace
     class TCanPort: public CAN::IPort
     {
         int Socket;
-        std::thread ReadThread;
+        std::thread Thread;
         std::atomic_bool Enabled;
         std::mutex HandlersMutex;
         std::mutex WriteMutex;
@@ -38,12 +38,73 @@ namespace
 
         std::mutex WriteConfirmMutex;
         std::condition_variable WriteConfirmCv;
-        bool Confirmed = false;
+        bool WriteConfirmed = false;
 
-        std::thread DispatchThread;
-        std::mutex CanDispatchMutex;
-        std::condition_variable CanDispatchCv;
-        std::queue<CAN::TFrame> CanFrames;
+        void SetWriteConfirmed()
+        {
+            std::unique_lock<std::mutex> waitLock(WriteConfirmMutex);
+            WriteConfirmed = true;
+            WriteConfirmCv.notify_all();
+        }
+
+        void RunHandlers(const CAN::TFrame& frame)
+        {
+            std::unique_lock<std::mutex> lk(HandlersMutex);
+            for (auto& handler: Handlers) {
+                try {
+                    if (handler->Handle(frame)) {
+                        break;
+                    }
+                } catch (const std::exception& e) {
+                    LOG(WBMQTT::Error) << e.what();
+                }
+            }
+        }
+
+        void ThreadFn()
+        {
+            while (Enabled.load()) {
+                timeval tv;
+                tv.tv_sec = READ_TIMEOUT_MS.count() / 1000;
+                tv.tv_usec = (READ_TIMEOUT_MS.count() % 1000) * 1000;
+                fd_set rfds;
+                FD_ZERO(&rfds);
+                FD_SET(Socket, &rfds);
+                int r = select(Socket + 1, &rfds, nullptr, nullptr, &tv);
+                if (r < 0) {
+                    LOG(WBMQTT::Error) << "select() failed " << strerror(errno);
+                    exit(1);
+                }
+                if (r > 0) {
+                    can_frame frame{0};
+                    iovec iov{0};
+                    iov.iov_base = &frame;
+                    iov.iov_len = sizeof(frame);
+                    uint8_t ctrlmsg[CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32))];
+                    msghdr msg{0};
+                    msg.msg_iov = &iov;
+                    msg.msg_iovlen = 1;
+                    msg.msg_control = &ctrlmsg;
+                    msg.msg_controllen = sizeof(ctrlmsg);
+                    msg.msg_flags = 0;
+
+                    auto nread = recvmsg(Socket, &msg, 0);
+                    if (nread == sizeof(CAN::TFrame)) {
+                        if (msg.msg_flags & MSG_CONFIRM) {
+                            SetWriteConfirmed();
+                        } else {
+                            RunHandlers(frame);
+                        }
+                    } else {
+                        if (nread < 0) {
+                            LOG(WBMQTT::Error) << "read() failed " << strerror(errno);
+                            exit(1);
+                        }
+                        LOG(WBMQTT::Error) << "Got " << nread << " instead of " << sizeof(CAN::TFrame) << " bytes";
+                    }
+                }
+            }
+        }
 
     public:
         TCanPort(const std::string& ifname)
@@ -78,94 +139,17 @@ namespace
 
             Enabled.store(true);
 
-            ReadThread = std::thread([&]() {
+            Thread = std::thread([this]() {
                 WBMQTT::SetThreadName("CAN listener");
-                while (Enabled.load()) {
-                    timeval tv;
-                    tv.tv_sec = READ_TIMEOUT_MS.count() / 1000;
-                    tv.tv_usec = (READ_TIMEOUT_MS.count() % 1000) * 1000;
-                    fd_set rfds;
-                    FD_ZERO(&rfds);
-                    FD_SET(Socket, &rfds);
-                    int r = select(Socket + 1, &rfds, nullptr, nullptr, &tv);
-                    if (r < 0) {
-                        LOG(WBMQTT::Error) << "select() failed " << strerror(errno);
-                        exit(1);
-                    }
-                    if (r > 0) {
-                        can_frame frame{0};
-                        frame.can_dlc = 1;
-                        uint8_t ctrlmsg[CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32))];
-                        iovec iov{0};
-                        iov.iov_base = &frame;
-                        msghdr msg{0};
-                        msg.msg_iov = &iov;
-                        msg.msg_iovlen = 1;
-                        msg.msg_control = &ctrlmsg;
-
-                        msg.msg_iov[0].iov_len = sizeof(frame);
-                        msg.msg_controllen = sizeof(ctrlmsg);
-                        msg.msg_flags = 0;
-
-                        auto nread = recvmsg(Socket, &msg, 0);
-                        if (nread == sizeof(CAN::TFrame)) {
-                            if (msg.msg_flags & MSG_CONFIRM) {
-                                std::unique_lock<std::mutex> waitLock(WriteConfirmMutex);
-                                Confirmed = true;
-                                WriteConfirmCv.notify_all();
-                            } else {
-                                std::unique_lock<std::mutex> waitLock(CanDispatchMutex);
-                                CanFrames.push(frame);
-                                CanDispatchCv.notify_all();
-                            }
-                        } else {
-                            if (nread < 0) {
-                                LOG(WBMQTT::Error) << "read() failed " << strerror(errno);
-                                exit(1);
-                            }
-                            LOG(WBMQTT::Error) << "Got " << nread << " instead of " << sizeof(CAN::TFrame) << " bytes";
-                        }
-                    }
-                }
-            });
-
-            DispatchThread = std::thread([&]() {
-                WBMQTT::SetThreadName("CAN dispatch");
-
-                CAN::TFrame frame;
-                while (Enabled.load()) {
-                    {
-                        std::unique_lock<std::mutex> waitLock(CanDispatchMutex);
-                        if (CanFrames.empty()) {
-                            if (std::cv_status::timeout == CanDispatchCv.wait_for(waitLock, READ_TIMEOUT_MS)) {
-                                continue;
-                            }
-                        }
-                        frame = CanFrames.front();
-                        CanFrames.pop();
-                    }
-                    std::unique_lock<std::mutex> lk(HandlersMutex);
-                    for (auto& handler: Handlers) {
-                        try {
-                            if (handler->Handle(frame)) {
-                                break;
-                            }
-                        } catch (const std::exception& e) {
-                            LOG(WBMQTT::Error) << e.what();
-                        }
-                    }
-                }
+                ThreadFn();
             });
         }
 
         ~TCanPort()
         {
             Enabled.store(false);
-            if (ReadThread.joinable()) {
-                ReadThread.join();
-            }
-            if (DispatchThread.joinable()) {
-                DispatchThread.join();
+            if (Thread.joinable()) {
+                Thread.join();
             }
             close(Socket);
         }
@@ -187,7 +171,7 @@ namespace
             std::unique_lock<std::mutex> lk(WriteMutex);
             {
                 std::unique_lock<std::mutex> waitLock(WriteConfirmMutex);
-                Confirmed = false;
+                WriteConfirmed = false;
             }
 
             auto nbytes = write(Socket, &frame, CAN_MTU);
@@ -196,7 +180,7 @@ namespace
                 throw std::runtime_error(std::string("CAN write error: ") + strerror(errno));
             }
             std::unique_lock<std::mutex> waitLock(WriteConfirmMutex);
-            if (Confirmed) {
+            if (WriteConfirmed) {
                 return;
             }
             if (std::cv_status::timeout == WriteConfirmCv.wait_for(waitLock, WRITE_TIMEOUT)) {
