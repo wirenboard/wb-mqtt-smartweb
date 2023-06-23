@@ -94,7 +94,7 @@ TEST_F(TLoadConfigTest, SmartWebToMqttConfigInputs)
     auto config = GetTestConfig();
     const auto smartWebClass = config->Classes.begin()->second;
 
-    EXPECT_EQ(7, smartWebClass->Inputs.size());
+    EXPECT_EQ(6, smartWebClass->Inputs.size());
     auto input = smartWebClass->Inputs.at(2);
 
     TestClassParameterSample sample = {.id = 2,
@@ -171,7 +171,7 @@ TEST_F(TLoadConfigTest, LoadConfig)
     auto roomDeviceClass = config.SmartWebToMqtt.Classes[5];
     ASSERT_NE(nullptr, roomDeviceClass);
     EXPECT_EQ("ROOM_DEVICE", roomDeviceClass->Name);
-    EXPECT_EQ(7, roomDeviceClass->Inputs.size());
+    EXPECT_EQ(6, roomDeviceClass->Inputs.size());
     EXPECT_EQ(7, roomDeviceClass->Outputs.size());
     EXPECT_EQ(34, roomDeviceClass->Parameters.size());
 

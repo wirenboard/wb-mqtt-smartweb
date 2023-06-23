@@ -6,7 +6,6 @@
 	"implements": ["PROGRAM"],
 	"inputs": {
 		"roomT":	{"id":0, "type": "temperature"},
-		"rc21": 	{"id":1, "type": "rc21"},
 		"floorT": 	{"id":2, "type": "temperature"},
 		"wallT": 	{"id":3, "type": "temperature"},
 		"humidity":	{"id":4, "type": "humidity"},
