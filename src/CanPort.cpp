@@ -27,6 +27,17 @@ namespace
         tv.tv_usec = (std::chrono::ceil<std::chrono::microseconds>(timeout).count() % 1000) * 1000;
     }
 
+    void initMsghdr(msghdr& msg, can_frame& frame, iovec& iov, uint8_t* ctrlmsg, size_t ctrlmsgSize)
+    {
+        iov.iov_base = &frame;
+        iov.iov_len = sizeof(frame);
+        msg.msg_iov = &iov;
+        msg.msg_iovlen = 1;
+        msg.msg_control = &ctrlmsg;
+        msg.msg_controllen = ctrlmsgSize;
+        msg.msg_flags = 0;
+    }
+
     class TCanPort: public CAN::IPort
     {
         int Socket;
@@ -65,8 +76,7 @@ namespace
         {
             while (Enabled.load()) {
                 timeval tv;
-                tv.tv_sec = READ_TIMEOUT_MS.count() / 1000;
-                tv.tv_usec = (READ_TIMEOUT_MS.count() % 1000) * 1000;
+                setTimeval(tv, READ_TIMEOUT_MS);
                 fd_set rfds;
                 FD_ZERO(&rfds);
                 FD_SET(Socket, &rfds);
@@ -76,17 +86,11 @@ namespace
                     exit(1);
                 }
                 if (r > 0) {
+                    msghdr msg{0};
                     can_frame frame{0};
                     iovec iov{0};
-                    iov.iov_base = &frame;
-                    iov.iov_len = sizeof(frame);
                     uint8_t ctrlmsg[CMSG_SPACE(sizeof(struct timeval)) + CMSG_SPACE(sizeof(__u32))];
-                    msghdr msg{0};
-                    msg.msg_iov = &iov;
-                    msg.msg_iovlen = 1;
-                    msg.msg_control = &ctrlmsg;
-                    msg.msg_controllen = sizeof(ctrlmsg);
-                    msg.msg_flags = 0;
+                    initMsghdr(msg, frame, iov, ctrlmsg, sizeof(ctrlmsg));
 
                     auto nread = recvmsg(Socket, &msg, 0);
                     if (nread == sizeof(CAN::TFrame)) {
