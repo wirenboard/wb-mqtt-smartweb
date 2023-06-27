@@ -359,12 +359,12 @@ void LoadConfig(TConfig& config,
     Json::Value classSchema = WBMQTT::JSON::Parse(classSchemaFileName);
     LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
                              configJson,
-                             pathToDeviceClassDirectory,
+                             pathToBuiltInDeviceClassDirectory,
                              classSchema,
                              TDeviceClassSource::BUILTIN);
     LoadSmartWebToMqttConfig(config.SmartWebToMqtt,
                              configJson,
-                             pathToBuiltInDeviceClassDirectory,
+                             pathToDeviceClassDirectory,
                              classSchema,
                              TDeviceClassSource::USER);
 }

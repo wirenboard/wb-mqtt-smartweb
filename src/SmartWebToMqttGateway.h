@@ -10,6 +10,7 @@
 #include <wblib/wbmqtt.h>
 
 #include "CanPort.h"
+#include "ThreadedCanReader.h"
 #include "scheduler.h"
 #include "smart_web_conventions.h"
 
@@ -239,9 +240,8 @@ void AddRequests(std::vector<CAN::TFrame>& requests,
 
 CAN::TFrame MakeSetParameterValueRequest(const TSmartWebParameterControl& param, const std::string& value);
 
-class TSmartWebToMqttGateway: public CAN::IFrameHandler
+class TSmartWebToMqttGateway
 {
-    std::shared_ptr<CAN::IPort> CanPort;
     TSmartWebToMqttConfig Config;
     WBMQTT::PDeviceDriver Driver;
     WBMQTT::PDriverEventHandlerHandle EventHandler;
@@ -257,7 +257,9 @@ class TSmartWebToMqttGateway: public CAN::IFrameHandler
     //! Program id to TSmartWebClass mapping
     std::unordered_map<uint8_t, TSmartWebClass*> KnownPrograms;
 
-    void HandleMapping();
+    std::unique_ptr<TThreadedCanReader> CanReader;
+
+    void HandleMapping(CAN::IPort& canPort);
     void AddProgram(const CAN::TFrame& frame);
     void HandleGetValueResponse(const CAN::TFrame& frame);
 
@@ -270,7 +272,9 @@ class TSmartWebToMqttGateway: public CAN::IFrameHandler
                                          const TSmartWebParameter& param,
                                          const std::string& value,
                                          bool error);
-    bool Handle(const CAN::TFrame& frame);
+
+    bool AcceptFrame(const CAN::TFrame& frame) const;
+    void HandleFrame(const CAN::TFrame& frame);
 
 public:
     TSmartWebToMqttGateway(const TSmartWebToMqttConfig& config,
