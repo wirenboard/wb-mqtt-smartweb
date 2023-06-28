@@ -1,0 +1,41 @@
+{
+	"class": "DHW",
+	"programType": 16,
+	"functionList": [],
+	"endClass": true,
+	"implements": ["CONSUMER", "PROGRAM"],
+	"inputs": {
+		"dhwT":			{"id":0, "type": "temperature"},
+		"flowAmount":	{"id":1, "type": "flowAmountLMin"},
+		"returnFlowT":	{"id":2, "type": "temperature"}
+	},
+	"outputs": {
+		"loadPump":				{"id":0, "type": "relay"},
+		"recirculationPump":	{"id":1, "type": "relay"},
+		"loadPumpAnalog":		{"id":2, "type": "PWM"}
+	},
+	"parameters": {
+		"DHWComfortTemperature":			{"id":1,	"encoding":"short10",	"type": "temperature"},
+		"currentRequiredDHWTemperature":	{"id":2,	"encoding":"short10",	"type": "temperature",	"readOnly":true},
+		"singleDHWMode":					{"id":3,	"encoding":"ubyte",		"type": "onOff"},
+		"dhwRelief":						{"id":4,	"encoding":"ubyte",		"type": "onOff"},
+		"circulationMode":					{"id":5,	"encoding":"ubyte",		"values":{"0":"On", "1":"by DHW mode", "2":"periodic on/off", "3":"Off"},	"type": "picklist"},
+		"circulationOnTime":				{"id":6,	"encoding":"uint60K",	"type": "minutes"},
+		"circulationOffTime":				{"id":7,	"encoding":"uint60K",	"type": "minutes"},
+		"hysteresis":						{"id":8,	"encoding":"short10",	"type": "temperature"},
+		"antilegion":						{"id":9,	"encoding":"ubyte",		"type": "onOff"},
+		
+		"workMode":							{"id":11,	"encoding":"ubyte",	"values":{"0":"Comfort", "1":"Economy", "2":"Schedule", "3":"Standby"},	"type": "picklist"},
+		"schedule":							{"id":12,	"encoding":"schedule1"},
+		"minimumFlow":						{"id":13,	"encoding":"uint1K"},
+		"pFactor":							{"id":14,	"encoding":"short10",	"type": "temperature"},
+		"iFactor":							{"id":15,	"encoding":"ubyte"},
+		
+		"dFactor":							{"id":17,	"encoding":"ubyte"},
+		"circulationDelta":					{"id":18,	"encoding":"short10",	"type": "temperature"},
+		"switchOffDelay":					{"id":19,	"encoding":"uint60K",	"type": "minutes"},
+		"currentWorkModeStatus":			{"id":20,	"encoding":"ubyte",	"type": "picklist", "values":{"0":"Comfort", "1":"Economy", "2":"ScheduleComfort", "3":"ScheduleEconomy", "4":"Standby"}, "readOnly":true},
+		"DHWReducedTemperature":			{"id":21,	"encoding":"short10",	"type": "temperature"},
+		"location":							{"id":22,	"encoding":"ubyte", "type": "picklist", "values": {"24": "Room 5", "25": "Room 6", "26": "Room 7", "27": "Room 8", "20": "Room 1", "21": "Room 2", "22": "Room 3", "23": "Room 4", "28": "Room 9", "29": "Room 10", "1": "First floor", "0": "Ground floor", "3": "Hall", "2": "Attic", "5": "Dining room", "4": "Living room", "7": "Bathroom", "6": "Kitchen", "9": "Bedroom 2", "8": "Bedroom", "11": "Office", "10": "Bedroom 3", "13": "Nursery", "12": "Children's room", "15": "Corridor", "14": "Playroom", "17": "Shower", "16": "Bathroom 2", "19": "Office 2", "18": "Restroom"}}
+	}
+}
