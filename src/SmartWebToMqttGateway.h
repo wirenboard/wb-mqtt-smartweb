@@ -11,6 +11,7 @@
 
 #include "smart_web_conventions.h"
 #include "CanPort.h"
+#include "ThreadedCanReader.h"
 #include "scheduler.h"
 
 const auto DEFAULT_POLL_INTERVAL_MS = std::chrono::milliseconds(500);
@@ -228,13 +229,12 @@ void AddRequests(std::vector<CAN::TFrame>&                                      
 
 CAN::TFrame MakeSetParameterValueRequest(const TSmartWebParameterControl& param, const std::string& value);
 
-class TSmartWebToMqttGateway: public CAN::IFrameHandler
+class TSmartWebToMqttGateway
 {
-    std::shared_ptr<CAN::IPort>                  CanPort;
-    TSmartWebToMqttConfig                        Config;
-    WBMQTT::PDeviceDriver                        Driver;
-    WBMQTT::PDriverEventHandlerHandle            EventHandler;
-    std::vector<std::string>                     DeviceIds;
+    TSmartWebToMqttConfig Config;
+    WBMQTT::PDeviceDriver Driver;
+    WBMQTT::PDriverEventHandlerHandle EventHandler;
+    std::vector<std::string> DeviceIds;
 
     std::mutex                                   RequestMutex;
     std::vector<CAN::TFrame>                     Requests;
@@ -246,7 +246,9 @@ class TSmartWebToMqttGateway: public CAN::IFrameHandler
     //! Program id to TSmartWebClass mapping
     std::unordered_map<uint8_t, TSmartWebClass*> KnownPrograms;
 
-    void HandleMapping();
+    std::unique_ptr<TThreadedCanReader> CanReader;
+
+    void HandleMapping(CAN::IPort& canPort);
     void AddProgram(const CAN::TFrame& frame);
     void HandleGetValueResponse(const CAN::TFrame& frame);
 
@@ -255,8 +257,14 @@ class TSmartWebToMqttGateway: public CAN::IFrameHandler
                       const uint8_t*                                                 data,
                       uint8_t                                                        programId);
 
-    WBMQTT::TControlArgs MakeControlArgs(uint8_t programId, const TSmartWebParameter& param, const std::string& value, bool error);
-    bool Handle(const CAN::TFrame& frame);
+    WBMQTT::TControlArgs MakeControlArgs(uint8_t programId,
+                                         const TSmartWebParameter& param,
+                                         const std::string& value,
+                                         bool error);
+
+    bool AcceptFrame(const CAN::TFrame& frame) const;
+    void HandleFrame(const CAN::TFrame& frame);
+
 public:
     TSmartWebToMqttGateway(const TSmartWebToMqttConfig& config,
                            std::shared_ptr<CAN::IPort>  canPort,
