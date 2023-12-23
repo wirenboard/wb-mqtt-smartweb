@@ -1,6 +1,7 @@
 {
     "debug": true,
     "poll_interval_ms": 123,
+    "interface_name": "can1",
     "controllers": [
         {
             "controller_id": 204,

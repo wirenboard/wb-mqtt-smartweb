@@ -1,3 +1,10 @@
+wb-mqtt-smartweb (1.4.3) stable; urgency=medium
+
+  * Add "interface_name" to config
+  * Don't restart if misconfigured or CAN interface is not found
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Sat, 23 Dec 2023 11:00:00 +0400
+
 wb-mqtt-smartweb (1.4.2) stable; urgency=medium
 
   * Fix makefile, no functional changes
