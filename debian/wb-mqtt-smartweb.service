@@ -6,11 +6,11 @@ StartLimitBurst=0
 
 [Service]
 Type=simple
-Restart=always
+Restart=on-failure
 RestartSec=2
 User=root
 ExecStart=/usr/bin/wb-mqtt-smartweb -c /etc/wb-mqtt-smartweb.conf
-RestartPreventExitStatus=2 6
+SuccessExitStatus=2 6
 
 [Install]
 WantedBy=multi-user.target
