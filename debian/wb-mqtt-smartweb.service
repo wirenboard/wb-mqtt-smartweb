@@ -10,6 +10,7 @@ Restart=always
 RestartSec=2
 User=root
 ExecStart=/usr/bin/wb-mqtt-smartweb -c /etc/wb-mqtt-smartweb.conf
+RestartPreventExitStatus=2 6
 
 [Install]
 WantedBy=multi-user.target

@@ -1,3 +1,5 @@
+PREFIX = /usr
+
 ifneq ($(DEB_HOST_MULTIARCH),)
 	CROSS_COMPILE ?= $(DEB_HOST_MULTIARCH)-
 endif
@@ -48,10 +50,10 @@ TEST_LDFLAGS = -lgtest -lwbmqtt_test_utils
 all: $(TARGET)
 
 $(TARGET): $(COMMON_OBJS) $(BUILD_DIR)/src/main.cpp.o
-	${CXX} -o $(BUILD_DIR)/$@ $^ $(LDFLAGS)
+	$(CXX) -o $(BUILD_DIR)/$@ $^ $(LDFLAGS)
 
 $(BUILD_DIR)/%.c.o: %.c
-	${CC} -c $< -o $@ ${CFLAGS}
+	$(CC) -c $< -o $@ $(CFLAGS)
 
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	mkdir -p $(dir $@)
@@ -80,12 +82,12 @@ clean:
 install:
 	install -d $(DESTDIR)/var/lib/wb-mqtt-smartweb
 	install -d $(DESTDIR)/etc/wb-mqtt-smartweb.conf.d/classes
-	install -d $(DESTDIR)/usr/share/wb-mqtt-smartweb/classes
-	install -D -m 0644  wb-mqtt-smartweb.schema.json $(DESTDIR)/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb.schema.json
-	install -D -m 0644  wb-mqtt-smartweb-class.schema.json $(DESTDIR)/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb-class.schema.json
-	install -D -m 0644  config.json $(DESTDIR)/etc/wb-mqtt-smartweb.conf
-	install -D -m 0755 $(BUILD_DIR)/$(TARGET) $(DESTDIR)/usr/bin/$(TARGET)
-	install -D -m 0644  wb-mqtt-smartweb.wbconfigs $(DESTDIR)/etc/wb-configs.d/21wb-mqtt-smartweb
-	cp -r classes $(DESTDIR)/usr/share/wb-mqtt-smartweb
+	install -d $(DESTDIR)$(PREFIX)/share/wb-mqtt-smartweb/classes
+	install -Dm0644 wb-mqtt-smartweb.schema.json -t $(DESTDIR)$(PREFIX)/share/wb-mqtt-confed/schemas
+	install -Dm0644 wb-mqtt-smartweb-class.schema.json -t $(DESTDIR)$(PREFIX)/share/wb-mqtt-confed/schemas
+	install -Dm0644 config.json $(DESTDIR)/etc/wb-mqtt-smartweb.conf
+	install -Dm0755 $(BUILD_DIR)/$(TARGET) -t $(DESTDIR)$(PREFIX)/bin
+	install -Dm0644 wb-mqtt-smartweb.wbconfigs $(DESTDIR)/etc/wb-configs.d/21wb-mqtt-smartweb
+	cp -r classes $(DESTDIR)$(PREFIX)/share/wb-mqtt-smartweb
 
 .PHONY: all test clean

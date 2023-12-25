@@ -289,6 +289,10 @@ namespace
             config.Debug = configJson["debug"].asBool();
         }
 
+        if (configJson.isMember("interface_name")) {
+            config.InterfaceName = configJson["interface_name"].asString();
+        }
+
         for (const auto& controller: configJson["controllers"]) {
             try {
                 config.Controllers.push_back(LoadMqttToSmartWebController(controller));

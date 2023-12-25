@@ -10,7 +10,8 @@ struct TConfig
     std::vector<TMqttToSmartWebConfig> Controllers;
     TSmartWebToMqttConfig SmartWebToMqtt;
     WBMQTT::TMosquittoMqttConfig Mqtt;
-    bool Debug = false;
+    bool Debug{false};
+    std::string InterfaceName{"can0"};
 };
 
 void LoadSmartWebClass(TSmartWebToMqttConfig& config, const Json::Value& data, TDeviceClassSource source);

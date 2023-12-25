@@ -12,6 +12,7 @@
 #include <vector>
 #include <wblib/utils.h>
 
+#include "exceptions.h"
 #include "log.h"
 
 #define LOG(logger) ::logger.Log() << "[CAN] "
@@ -128,8 +129,8 @@ namespace
             ifr.ifr_name[IFNAMSIZ - 1] = '\0';
             ifr.ifr_ifindex = if_nametoindex(ifr.ifr_name);
             if (!ifr.ifr_ifindex) {
-                throw std::runtime_error(std::string("if_nametoindex failed for interface '") + ifr.ifr_name + "', " +
-                                         strerror(errno));
+                throw TInterfaceNotFoundError(std::string("if_nametoindex failed for interface '") + ifr.ifr_name +
+                                              "', " + strerror(errno));
             }
 
             addr.can_family = AF_CAN;

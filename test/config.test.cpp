@@ -157,6 +157,7 @@ TEST_F(TLoadConfigTest, LoadConfig)
                                ClassSchemaFile));
 
     EXPECT_TRUE(config.Debug);
+    EXPECT_EQ("can1", config.InterfaceName);
     EXPECT_EQ(123, config.SmartWebToMqtt.PollInterval.count());
 
     EXPECT_EQ(3, config.SmartWebToMqtt.Classes.size());

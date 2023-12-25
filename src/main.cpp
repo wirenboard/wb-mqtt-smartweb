@@ -83,7 +83,7 @@ namespace
             default:
                 cout << "Invalid -d parameter value " << debugLevel << endl;
                 PrintUsage();
-                exit(2);
+                exit(2); // EXIT_INVALIDARGUMENT
         }
     }
 
@@ -151,7 +151,7 @@ namespace
                     break;
                 default:
                     PrintUsage();
-                    exit(2);
+                    exit(2); // EXIT_INVALIDARGUMENT
             }
         }
     }
@@ -160,14 +160,13 @@ namespace
 int main(int argc, char* argv[])
 {
     string configFile(CONFIG_FULL_FILE_PATH);
-    string ifname("can0");
     TConfig config;
 
     TPromise<void> initialized;
     SignalHandling::Handle({SIGINT, SIGTERM});
     SignalHandling::OnSignals({SIGINT, SIGTERM}, [&] { SignalHandling::Stop(); });
     SetThreadName(APP_NAME);
-    ParseCommadLine(argc, argv, config.Mqtt, configFile, ifname);
+    ParseCommadLine(argc, argv, config.Mqtt, configFile, config.InterfaceName);
 
     PrintStartupInfo();
 
@@ -195,7 +194,7 @@ int main(int argc, char* argv[])
             config.Mqtt.Id = APP_NAME;
     } catch (const exception& e) {
         LOG(WBMQTT::Error) << "FATAL: " << e.what();
-        return 1;
+        return 6; // EXIT_NOTCONFIGURED
     }
 
     try {
@@ -211,7 +210,7 @@ int main(int argc, char* argv[])
         driver->StartLoop();
         driver->WaitForReady();
 
-        auto port = CAN::MakePort(ifname);
+        auto port = CAN::MakePort(config.InterfaceName);
 
         {
             TSmartWebToMqttGateway smartWebToMqttGateway(config.SmartWebToMqtt, port, driver);
@@ -226,6 +225,9 @@ int main(int argc, char* argv[])
         }
         driver->StopLoop();
         driver->Close();
+    } catch (const TInterfaceNotFoundError& e) {
+        LOG(WBMQTT::Error) << "FATAL: " << e.what();
+        return 6; // EXIT_NOTCONFIGURED
     } catch (const exception& e) {
         LOG(WBMQTT::Error) << "FATAL: " << e.what();
         return 1;
