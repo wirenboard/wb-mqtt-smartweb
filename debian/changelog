@@ -1,3 +1,9 @@
+wb-mqtt-smartweb (1.4.4) stable; urgency=medium
+
+  * Remove obsolete outputs parameter from default config
+
+ -- Petr Krasnoshchekov <petr.krasnoshchekov@wirenboard.com>  Thu, 22 Feb 2024 18:06:23 +0500
+
 wb-mqtt-smartweb (1.4.3) stable; urgency=medium
 
   * Add "interface_name" to config

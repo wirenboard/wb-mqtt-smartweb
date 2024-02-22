@@ -11,13 +11,6 @@
                     "sensor_index": 1
                 }
             ],
-            "outputs": [
-                {
-                    "channel": "wb-adc/R1",
-                    "value_timeout_min": 60,
-                    "output_index": 0
-                }
-            ],
             "parameters": [
                 {
                     "channel": "wb-adc/Vin",

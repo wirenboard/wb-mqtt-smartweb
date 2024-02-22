@@ -277,8 +277,8 @@ namespace
             }
         }
 
-        if (!configJson.isMember("parameters") && !configJson.isMember("sensors") && !configJson.isMember("outputs")) {
-            throw std::runtime_error("Malformed JSON config: no parameter, sensor or output in mapping");
+        if (!configJson.isMember("parameters") && !configJson.isMember("sensors")) {
+            throw std::runtime_error("Malformed JSON config: no parameter or sensor in mapping");
         }
         return res;
     }
