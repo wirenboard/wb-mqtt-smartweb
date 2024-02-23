@@ -69,7 +69,7 @@ public:
         std::vector<uint8_t> res;
         for (size_t i = 0; i < sizeof(Int); ++i) {
             res.push_back(v & 0xFF);
-            v >>= 8;
+            v >>= 8; // NOLINT(clang-diagnostic-shift-count-overflow)
         }
         return res;
     }
@@ -103,7 +103,7 @@ public:
         std::vector<uint8_t> res;
         for (size_t i = 0; i < sizeof(Int); ++i) {
             res.push_back(v & 0xFF);
-            v >>= 8;
+            v >>= 8; // NOLINT(clang-diagnostic-shift-count-overflow)
         }
         return res;
     }

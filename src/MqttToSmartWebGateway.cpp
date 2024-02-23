@@ -190,7 +190,8 @@ bool TMqttToSmartWebGateway::IsForMe(const SmartWeb::TCanHeader& header, const T
     {
         SmartWeb::TMappingPoint mapping_point;
         memcpy(&mapping_point.raw, data, 2);
-        return mapping_point.hostID == DriverState.ProgramId;
+        return mapping_point.hostID ==
+               DriverState.ProgramId; // NOLINT(clang-analyzer-core.UndefinedBinaryOperatorResult)
     }
 
     return false;
