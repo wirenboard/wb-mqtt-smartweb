@@ -12,7 +12,13 @@
                     "type": "string",
                     "title": "Device Id/Control Id",
                     "minLength": 3,
-                    "propertyOrder": 1
+                    "propertyOrder": 1,
+                    "options": {
+                        "wb": {
+                            "data": "devices"
+                        }
+                    },
+                    "format": "wb-autocomplete"
                 },
                 "value_timeout_min": {
                     "type": "integer",
@@ -38,7 +44,13 @@
                     "type": "string",
                     "title": "Device Id/Control Id",
                     "minLength": 3,
-                    "propertyOrder": 1
+                    "propertyOrder": 1,
+                    "options": {
+                        "wb": {
+                            "data": "devices"
+                        }
+                    },
+                    "format": "wb-autocomplete"
                 },
                 "value_timeout_min": {
                     "type": "integer",
