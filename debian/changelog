@@ -1,3 +1,9 @@
+wb-mqtt-smartweb (1.4.6) stable; urgency=medium
+
+  * Fix default config (add value_timeout_min)
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Fri, 12 Jul 2024 00:30:00 +0400
+
 wb-mqtt-smartweb (1.4.5) stable; urgency=medium
 
   * Add json editor autocomplete for devices
