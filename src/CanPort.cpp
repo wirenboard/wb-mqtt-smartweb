@@ -118,7 +118,7 @@ namespace
             struct ifreq ifr;
 
             if ((Socket = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
-                throw std::runtime_error("Error while opening CAN socket");
+                throw std::runtime_error(std::string("Error while opening CAN socket: ") + strerror(errno));
             }
 
             int enable = 1;
@@ -139,7 +139,7 @@ namespace
             LOG(WBMQTT::Info) << ifname.c_str() << " at index " << ifr.ifr_ifindex;
 
             if (bind(Socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-                throw std::runtime_error("Error in CAN socket bind");
+                throw std::runtime_error(std::string("Error in CAN socket bind: ") + strerror(errno));
             }
 
             Enabled.store(true);
