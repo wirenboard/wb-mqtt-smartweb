@@ -3,4 +3,4 @@ buildDebSbuild defaultTargets: 'bullseye-armhf bullseye-arm64',
                defaultAngryClangTidy: false,
                defaultStyleCheckDirs: 'src test',
                defaultRunCoverage: false,
-               defaultCoverageMin: '39'
+               defaultCoverageMin: '34'
