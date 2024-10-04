@@ -26,7 +26,7 @@ else
 	CMAKE_BUILD_TYPE=Debug
 endif
 
-COMMON_SRCS := $(shell find $(SRC_DIRS) \( -name *.cpp -or -name *.c \) -and -not -name main.cpp)
+COMMON_SRCS := $(shell find $(SRC_DIRS) \( -name "*.cpp" -or -name "*.c" \) -and -not -name main.cpp)
 COMMON_OBJS := $(COMMON_SRCS:%=$(BUILD_DIR)/%.o)
 
 LDFLAGS = -lwbmqtt1 -lpthread
@@ -36,16 +36,23 @@ CFLAGS = -Wall -I$(SRC_DIR)
 ifeq ($(DEBUG),)
 	CXXFLAGS += -O2
 else
-	CXXFLAGS += -g -O0 -fprofile-arcs -ftest-coverage -ggdb
-	LDFLAGS += -lgcov
+	CXXFLAGS += -g -O0 --coverage -ggdb
+	LDFLAGS += --coverage
 endif
 
-
 TEST_DIR = test
-TEST_SRCS := $(shell find $(TEST_DIR) \( -name *.cpp -or -name *.c \) -and -not -name main.cpp)
+TEST_SRCS := $(shell find $(TEST_DIR) \( -name "*.cpp" -or -name "*.c" \) -and -not -name main.cpp)
 TEST_OBJS := $(TEST_SRCS:%=$(BUILD_DIR)/%.o)
 TEST_TARGET = test-app
 TEST_LDFLAGS = -lgtest -lwbmqtt_test_utils
+
+VALGRIND_FLAGS = --error-exitcode=180 -q
+
+COV_REPORT ?= $(BUILD_DIR)/cov
+GCOVR_FLAGS := -s --html $(COV_REPORT).html -x $(COV_REPORT).xml
+ifneq ($(COV_FAIL_UNDER),)
+	GCOVR_FLAGS += --fail-under-line $(COV_FAIL_UNDER)
+endif
 
 all: $(TARGET)
 
@@ -59,12 +66,9 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	mkdir -p $(dir $@)
 	$(CXX) -c $(CXXFLAGS) -o $@ $^
 
-$(BUILD_DIR)/test/%.o: test/%.cpp
-	$(CXX) -c $(CXXFLAGS) -o $@ $^
-
 test: $(TEST_DIR)/$(TEST_TARGET)
 	if [ "$(shell arch)" != "armv7l" ] && [ "$(CROSS_COMPILE)" = "" ] || [ "$(CROSS_COMPILE)" = "x86_64-linux-gnu-" ]; then \
-		valgrind --error-exitcode=180 -q $(TEST_DIR)/$(TEST_TARGET) || \
+		valgrind $(VALGRIND_FLAGS) $(TEST_DIR)/$(TEST_TARGET) || \
 		if [ $$? = 180 ]; then \
 			echo "*** VALGRIND DETECTED ERRORS ***" 1>& 2; \
 			exit 1; \
@@ -72,6 +76,9 @@ test: $(TEST_DIR)/$(TEST_TARGET)
 	else \
 		$(TEST_DIR)/$(TEST_TARGET); \
 	fi
+ifneq ($(DEBUG),)
+	gcovr $(GCOVR_FLAGS) $(BUILD_DIR)/$(SRC_DIR) $(BUILD_DIR)/$(TEST_DIR)
+endif
 
 $(TEST_DIR)/$(TEST_TARGET): $(TEST_OBJS) $(COMMON_OBJS) $(BUILD_DIR)/test/main.cpp.o
 	$(CXX) -o $@ $^ $(LDFLAGS) $(TEST_LDFLAGS) -fno-lto
