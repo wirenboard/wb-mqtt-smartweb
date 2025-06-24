@@ -326,6 +326,10 @@ void TSmartWebToMqttGateway::AddProgram(const CAN::TFrame& frame)
     if (KnownPrograms.count(header->rec.program_id)) {
         return;
     }
+    if (frame.can_dlc != 3) {
+        print_frame(DebugSwToMqtt, frame, "Invalid I_AM_PROGRAM frame. Expected exactly 3 bytes of data. Possibly the firmware is too old");
+        return;
+    }
     auto cl = Config.Classes.find(frame.data[2]);
     if (cl == Config.Classes.end()) {
         print_frame(DebugSwToMqtt, frame, "Unknown program type");
