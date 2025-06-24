@@ -327,7 +327,9 @@ void TSmartWebToMqttGateway::AddProgram(const CAN::TFrame& frame)
         return;
     }
     if (frame.can_dlc != 3) {
-        print_frame(DebugSwToMqtt, frame, "Invalid I_AM_PROGRAM frame. Expected exactly 3 bytes of data. Possibly the firmware is too old");
+        print_frame(DebugSwToMqtt,
+                    frame,
+                    "Invalid I_AM_PROGRAM frame. Expected exactly 3 bytes of data. Possibly the firmware is too old");
         return;
     }
     auto cl = Config.Classes.find(frame.data[2]);
