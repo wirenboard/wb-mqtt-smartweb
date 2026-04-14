@@ -376,6 +376,9 @@ WBMQTT::TControlArgs TSmartWebToMqttGateway::MakeControlArgs(uint8_t programId,
     if (param.Type == "minutes") {
         res.SetUnits("min");
     }
+    if (param.Type == "pressure") {
+        res.SetUnits("bar");
+    }
     if (error) {
         res.SetError("r");
         res.SetRawValue(value.empty() ? "0" : value);
