@@ -30,7 +30,7 @@ COMMON_SRCS := $(shell find $(SRC_DIRS) \( -name "*.cpp" -or -name "*.c" \) -and
 COMMON_OBJS := $(COMMON_SRCS:%=$(BUILD_DIR)/%.o)
 
 LDFLAGS = -lwbmqtt1 -lpthread
-CXXFLAGS = -std=c++17 -Wall -Werror -I$(SRC_DIRS) -DWBMQTT_COMMIT="$(GIT_REVISION)" -DWBMQTT_VERSION="$(DEB_VERSION)" -Wno-psabi
+CXXFLAGS = -std=c++20 -Wall -Werror -I$(SRC_DIRS) -DWBMQTT_COMMIT="$(GIT_REVISION)" -DWBMQTT_VERSION="$(DEB_VERSION)" -Wno-psabi
 CFLAGS = -Wall -I$(SRC_DIR)
 
 ifeq ($(DEBUG),)
