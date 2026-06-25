@@ -1,0 +1,248 @@
+LEGEND: TX=bytes WE send | RX=bytes the CHIP emits (forwarded CAN frame / Z=tx-ack / F=status /
+        GARBAGE=UART-desync byte) | '-> [script note]'=my annotation, NOT chip output.
+        RX frame with another program_id = another bus node; an RX frame byte-identical to our TX
+        = the OTHER master's copy of that broadcast, NOT a chip echo.
+
+[   1.851] TX  54 10 01 cc 0b 01 0e 0d        health probe I_AM_HERE
+[   1.852] RX  54 10 01 d6 0b 01 0a 0d        FRAME 'T' id=0x1001D60B PT=11 PID=214 FN=1 MT=2/RESPONSE DLC=1 data=[0a]
+[   1.852] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[   1.853] RX  46 06 0d                       F status = 6
+[   1.967] TX  54 10 01 cc 0b 01 0e 0d        health probe I_AM_HERE
+[   1.968] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[   1.972] RX  46 06 0d                       F status = 6
+[   2.079] TX  54 10 01 cc 0b 01 0e 0d        health probe I_AM_HERE
+[   2.080] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[   2.083] RX  46 06 0d                       F status = 6
+chip health (I_AM_HERE x3 -> Z): 3/3
+=== SNIFF 20s: capture REQUEST frames from the active bus master ===
+[   5.409] RX  54 10 01 d2 02 02 ce 00 0d     FRAME 'T' id=0x1001D202 PT=2 PID=210 FN=1 MT=2/RESPONSE DLC=2 data=[ce 00]
+[   5.417] RX  54 10 07 d3 01 03 e0 d6 02 0d  FRAME 'T' id=0x1007D301 PT=1 PID=211 FN=7 MT=2/RESPONSE DLC=3 data=[e0 d6 02]
+[   5.424] RX  54 10 01 d3 02 02 d2 00 0d     FRAME 'T' id=0x1001D302 PT=2 PID=211 FN=1 MT=2/RESPONSE DLC=2 data=[d2 00]
+[  10.260] RX  54 00 00 00 06 03 bc 02 d1 0d  FRAME 'T' id=0x00000006 PT=6 PID=0 FN=0 MT=0/REQUEST DLC=3 data=[bc 02 d1]
+[  11.691] RX  54 10 01 d6 0b 01 0a 0d        FRAME 'T' id=0x1001D60B PT=11 PID=214 FN=1 MT=2/RESPONSE DLC=1 data=[0a]
+[  15.510] RX  54 10 01 d2 02 02 ce 00 0d     FRAME 'T' id=0x1001D202 PT=2 PID=210 FN=1 MT=2/RESPONSE DLC=2 data=[ce 00]
+[  15.521] RX  54 10 01 d3 02 02 d2 00 0d     FRAME 'T' id=0x1001D302 PT=2 PID=211 FN=1 MT=2/RESPONSE DLC=2 data=[d2 00]
+[  21.695] RX  54 10 01 d6 0b 01 0a 0d        FRAME 'T' id=0x1001D60B PT=11 PID=214 FN=1 MT=2/RESPONSE DLC=1 data=[0a]
+  captured 8 frames (1 requests, 4 distinct responses); 1 request-types
+  source: no answered request sniffed -> known-good responder 0x0001D116 (GET_PARAMETER_VALUE->209)
+  CHOSEN request: id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+  expect response: id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE
+  UART command to send: 54 00 01 d1 16 04 01 01 02 00 0d
+
+=== POLL like wb-mqtt-smartweb: request -> WAIT response -> 500ms -> next ===
+[  22.199] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #1  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  22.200] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  22.200] RX  46 06 0d                       F status = 6
+[  22.219] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +36ms
+[  22.695] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #2  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  22.696] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  22.701] RX  46 06 0d                       F status = 6
+[  22.717] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +32ms
+[  23.199] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #3  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  23.200] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  23.204] RX  46 06 0d                       F status = 6
+[  23.215] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +28ms
+[  23.699] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #4  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  23.700] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  23.703] RX  46 06 0d                       F status = 6
+[  23.721] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +33ms
+[  24.199] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #5  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  24.200] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  24.206] RX  46 06 0d                       F status = 6
+[  24.225] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +35ms
+[  24.520] RX  54 00 00 00 06 03 bc 02 d1 0d  FRAME 'T' id=0x00000006 PT=6 PID=0 FN=0 MT=0/REQUEST DLC=3 data=[bc 02 d1]
+[  24.703] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #6  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  24.704] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  24.708] RX  46 06 0d                       F status = 6
+[  24.722] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +30ms
+[  25.207] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #7  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  25.208] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  25.210] RX  46 06 0d                       F status = 6
+[  25.228] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +34ms
+[  25.524] RX  54 10 01 d2 02 02 ce 00 0d     FRAME 'T' id=0x1001D202 PT=2 PID=210 FN=1 MT=2/RESPONSE DLC=2 data=[ce 00]
+[  25.531] RX  54 10 01 d3 02 02 d2 00 0d     FRAME 'T' id=0x1001D302 PT=2 PID=211 FN=1 MT=2/RESPONSE DLC=2 data=[d2 00]
+[  25.707] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #8  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  25.707] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  25.712] RX  46 06 0d                       F status = 6
+[  25.732] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +36ms
+[  26.211] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #9  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  26.212] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  26.214] RX  46 06 0d                       F status = 6
+[  26.229] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +31ms
+[  26.711] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #10  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  26.711] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  26.716] RX  46 06 0d                       F status = 6
+[  26.733] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +34ms
+[  27.211] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #11  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  27.212] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  27.218] RX  46 06 0d                       F status = 6
+[  27.230] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +29ms
+[  27.715] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #12  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  27.716] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  27.721] RX  46 06 0d                       F status = 6
+[  27.738] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +33ms
+[  28.219] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #13  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  28.220] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  28.222] RX  46 06 0d                       F status = 6
+[  28.236] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +29ms
+[  28.719] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #14  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  28.720] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  28.723] RX  46 06 0d                       F status = 6
+[  28.740] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +33ms
+[  29.223] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #15  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  29.223] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  29.223] RX  46 06 0d                       F status = 6
+[  29.236] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +29ms
+[  29.723] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #16  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  29.724] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  29.726] RX  46 06 0d                       F status = 6
+[  29.742] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +33ms
+[  30.223] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #17  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  30.224] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  30.225] RX  46 06 0d                       F status = 6
+[  30.239] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +30ms
+[  30.723] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #18  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  30.724] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  30.729] RX  46 06 0d                       F status = 6
+[  30.743] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +32ms
+[  31.223] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #19  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  31.223] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  31.228] RX  46 06 0d                       F status = 6
+[  31.240] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +28ms
+[  31.695] RX  54 10 01 d6 0b 01 0a 0d        FRAME 'T' id=0x1001D60B PT=11 PID=214 FN=1 MT=2/RESPONSE DLC=1 data=[0a]
+[  31.723] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #20  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  31.724] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  31.729] RX  46 06 0d                       F status = 6
+[  31.748] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +34ms
+[  32.231] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #21  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  32.231] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  32.231] RX  46 06 0d                       F status = 6
+[  32.244] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +30ms
+[  32.727] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #22  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  32.728] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  32.733] RX  46 06 0d                       F status = 6
+[  32.750] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +33ms
+[  33.231] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #23  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  33.231] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  33.234] RX  46 06 0d                       F status = 6
+[  33.246] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +29ms
+[  33.731] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #24  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  33.732] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  33.735] RX  46 06 0d                       F status = 6
+[  33.754] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +35ms
+[  34.235] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #25  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  34.236] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  34.238] RX  46 06 0d                       F status = 6
+[  34.251] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +29ms
+[  34.731] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #26  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  34.732] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  34.737] RX  46 06 0d                       F status = 6
+[  34.754] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +32ms
+[  35.235] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #27  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+[  35.235] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+[  35.238] RX  46 06 0d                       F status = 6
+[  35.253] RX  54 10 01 d1 16 05 01 01 02 d3 00 0d FRAME 'T' id=0x1001D116 PT=22 PID=209 FN=1 MT=2/RESPONSE DLC=5 data=[01 01 02 d3 00]
+          -> [script note] Z-ack ok; expected SmartWeb response arrived +30ms
+[  35.590] RX  54 10 01 d6 0b 01 0a 0d        FRAME 'T' id=0x1001D60B PT=11 PID=214 FN=1 MT=2/RESPONSE DLC=1 data=[0a]
+[  35.735] TX  54 00 01 d1 16 04 01 01 02 00 0d REQUEST #28  id=0x0001D116 PT=22 PID=209 FN=1 MT=0/REQUEST DLC=4 data=[01 01 02 00]
+          *** NO 'Z' ACK === WEDGE on REQUEST #28 ***
+
+========== POST-WEDGE DIAGNOSIS (ALL traffic, NOTHING suppressed) ==========
+-- read every status / identity register --
+[  35.947] TX  46 0d                          F = CAN status
+[  36.407] TX  56 0d                          V = firmware id
+[  36.607] RX  54                             GARBAGE (frm?)
+[  36.608] RX  10                             GARBAGE (??)
+[  36.608] RX  01                             GARBAGE (??)
+[  36.608] RX  d2                             GARBAGE (??)
+[  36.608] RX  02                             GARBAGE (??)
+[  36.609] RX  02                             GARBAGE (??)
+[  36.609] RX  ce                             GARBAGE (??)
+[  36.609] RX  00                             GARBAGE (??)
+[  36.609] RX  00                             GARBAGE (??)
+[  36.616] RX  54 10 01 d3 02 02 d2 00 0d     FRAME 'T' id=0x1001D302 PT=2 PID=211 FN=1 MT=2/RESPONSE DLC=2 data=[d2 00]
+[  36.867] TX  4e 0d                          N = serial num
+[  36.868] RX  4e                             GARBAGE (??)
+[  36.868] RX  b4                             GARBAGE (??)
+[  36.868] RX  16                             GARBAGE (??)
+[  37.327] TX  76 0d                          v = sub-version
+[  37.328] RX  76                             GARBAGE (??)
+[  37.328] RX  01                             GARBAGE (??)
+[  37.328] RX  02                             GARBAGE (??)
+-- listen 4s: ALL RX after wedge (forwarded frames + garbage, uncut) --
+[  38.782] RX  54 00 00 00 06 03 bc 02 d1 0d  FRAME 'T' id=0x00000006 PT=6 PID=0 FN=0 MT=0/REQUEST DLC=3 data=[bc 02 d1]
+[  40.384] RX  54 10 01 d6 0b 01 0a 0d        FRAME 'T' id=0x1001D60B PT=11 PID=214 FN=1 MT=2/RESPONSE DLC=1 data=[0a]
+[  41.698] RX  00                             GARBAGE (??)
+[  41.698] RX  02                             GARBAGE (??)
+[  41.698] RX  ef                             GARBAGE (??)
+[  41.698] RX  00                             GARBAGE (??)
+[  41.698] RX  fe                             GARBAGE (??)
+[  41.698] RX  00                             GARBAGE (??)
+
+========== RECOVERY ATTEMPTS (resend after each) ==========
+
+-- 1) plain retry, no recovery --
+[  41.791] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [no recovery]
+          -> still wedged (no Z) [no recovery]
+
+-- 2) RCY (chip busoff-recovery command) --
+[  42.203] TX  52 43 59 0d                    RCY
+[  42.667] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [after RCY]
+          -> still wedged (no Z) [after RCY]
+
+-- 3) close + open --
+[  43.079] TX  43 0d                          C close
+[  43.439] TX  4f 0d                          O open
+[  43.799] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [after C+O]
+[  43.800] RX  54                             GARBAGE (frm?)
+[  43.800] RX  10                             GARBAGE (??)
+[  43.800] RX  00                             GARBAGE (??)
+[  43.801] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+          -> RECOVERED (got Z) [after C+O]
+
+-- confirm SUSTAINED recovery: 5x I_AM_HERE --
+[  43.811] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [sustain]
+[  43.812] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+          -> RECOVERED (got Z) [sustain]
+[  43.927] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [sustain]
+[  43.927] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+          -> RECOVERED (got Z) [sustain]
+[  44.020] RX  46 f3 0d                       F status = -13
+[  44.039] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [sustain]
+[  44.040] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+          -> RECOVERED (got Z) [sustain]
+[  44.151] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [sustain]
+[  44.152] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+          -> RECOVERED (got Z) [sustain]
+[  44.263] TX  54 10 01 cc 0b 01 0e 0d        resend I_AM_HERE DLC=1 [sustain]
+[  44.264] RX  5a 0d                          ACK 'Z'  <- transmit accepted (Z)
+          -> RECOVERED (got Z) [sustain]
+          => sustained 5/5
+
+DONE. wedged=True incoming_during_poll=35
