@@ -27,7 +27,10 @@
 ```sh
 # на контроллере, под root, из этого каталога (желательно сперва reboot — оживляет чип)
 ./raw-uart-enable.sh                 # -> "OK: raw UART up ... VID 0x04D9 answers"
-python3 canmod4_applike_repro.py     # снимает с шины реальный запрос и поллит как приложение
+python3 canmod4_applike_repro.py             # поллит как приложение на 20 кбит/с (по умолчанию)
+# выбор скорости / числа запросов:  python3 canmod4_applike_repro.py <кбит/с> [число_запросов]
+#   напр.  python3 canmod4_applike_repro.py 500 2400   # 500 кбит/с, 2400 запросов (~20 мин)
+#   допустимые скорости: 5 10 20 50 100 125 250 500 800 1000 кбит/с
 ./raw-uart-restore.sh                # вернуть canMOD4 (CAN-драйвер)
 systemctl enable --now wb-mqtt-smartweb   # вернуть приложение, если выключали
 ```

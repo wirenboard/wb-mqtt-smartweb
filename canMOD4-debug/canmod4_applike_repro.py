@@ -8,6 +8,13 @@
 import serial, time, sys
 PORT='/dev/ttyS5'; BAUD=115200
 POLL_MS=500
+# --- test bitrate select: argv[1] = bitrate in kbit/s (default 20), argv[2] = poll count (default 120) ---
+RATE_CODES={5:0,10:1,20:2,50:3,100:4,125:5,250:6,500:7,800:8,1000:9}  # kbit/s -> chip 'S' code (per driver table)
+RATE_KBPS=int(sys.argv[1]) if len(sys.argv)>1 else 20
+if RATE_KBPS not in RATE_CODES:
+    sys.exit(f"unknown bitrate {RATE_KBPS}k; valid: {sorted(RATE_CODES)} kbit/s")
+SCODE=RATE_CODES[RATE_KBPS]
+N_POLLS=int(sys.argv[2]) if len(sys.argv)>2 else 120
 T0=time.time()
 def ts(): return '%8.3f'%(time.time()-T0)
 def hx(b): return ' '.join('%02x'%x for x in b) if b else '--'
@@ -86,13 +93,14 @@ class C:
             time.sleep(0.003)
     def cmd(s,d,wait=0.2): s.w(d,'',log=False); s.pump(wait)
     def reinit(s):
-        for d in (b'RST\r',b'C\r',b'S\x02\r',b'O\r',b'm\x00\x00\r',b'M\x00\x00\r',b'm\x00\x00\x00\x00\r',b'M\x00\x00\x00\x00\r'):
+        for d in (b'RST\r',b'C\r',b'S'+bytes([SCODE])+b'\r',b'O\r',b'm\x00\x00\r',b'M\x00\x00\r',b'm\x00\x00\x00\x00\r',b'M\x00\x00\x00\x00\r'):
             s.cmd(d,0.18)
 
 def frame_to_cmd(idv,dlc,data):
     return b'T'+idv.to_bytes(4,'big')+bytes([dlc])+bytes(data)+b'\r'
 
 def main():
+    print(f"=== test bitrate: {RATE_KBPS} kbit/s (chip S code {SCODE}); poll count: {N_POLLS} ===", flush=True)
     c=C(); c.reinit(); time.sleep(0.3)
     c.quiet=False   # log ALL traffic (health + sniff + poll + post-wedge), NOTHING suppressed
     print("LEGEND: TX=bytes WE send | RX=bytes the CHIP emits (forwarded CAN frame / Z=tx-ack / F=status /", flush=True)
@@ -142,7 +150,7 @@ def main():
     # ---- Phase B: poll exactly like the app ----
     print(f"\n=== POLL like wb-mqtt-smartweb: request -> WAIT response -> {POLL_MS}ms -> next ===", flush=True)
     c.quiet=False
-    MAXP=120; wedged=False; frames_at_start=len(c.frames)
+    MAXP=N_POLLS; wedged=False; frames_at_start=len(c.frames)
     for i in range(1,MAXP+1):
         cyc=time.time()
         a0=c.acks; fn0=len(c.frames)
