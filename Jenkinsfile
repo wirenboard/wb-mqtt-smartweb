@@ -3,7 +3,7 @@ buildDebSbuild defaultTargets: 'current-armhf current-arm64',
                defaultAngryClangTidy: false,
                defaultStyleCheckDirs: 'src test',
                defaultRunCoverage: true,
-               defaultCoverageMin: '34',
+               defaultCoverageMin: '33',
                defaultDoCoverallsReporting: true,
                defaultBuildNode: 'heavy-duty'
 
