@@ -208,12 +208,12 @@ namespace
         }
     }
 
-    void LoadTiming(TMqttToSmartWebConfig& controller, const std::string& mqtt_channel, const Json::Value& configJson)
+    void LoadTiming(TMqttToSmartWebConfig& controller, const Json::Value& mappingJson)
     {
-        auto& mqtt_channel_timing = controller.MqttChannelsTiming[mqtt_channel];
+        auto& mqtt_channel_timing = controller.MqttChannelsTiming[mappingJson["channel"].asString()];
         mqtt_channel_timing.refresh_last_update_timepoint();
-        if (configJson.isMember("value_timeout_min")) {
-            mqtt_channel_timing.ValueTimeoutMin = TTimeIntervalMin(configJson["value_timeout_min"].asInt());
+        if (mappingJson.isMember("value_timeout_min")) {
+            mqtt_channel_timing.ValueTimeoutMin = TTimeIntervalMin(mappingJson["value_timeout_min"].asInt());
         }
     }
 
@@ -225,7 +225,7 @@ namespace
         if (configJson.isMember("sensors")) {
             for (const auto& sensor: configJson["sensors"]) {
                 const auto& mqtt_channel = sensor["channel"].asString();
-                LoadTiming(res, mqtt_channel, sensor);
+                LoadTiming(res, sensor);
                 SmartWeb::TParameterInfo parameter_info{0};
                 parameter_info.parameter_id = SmartWeb::Controller::Parameters::SENSOR;
                 parameter_info.program_type = SmartWeb::PT_CONTROLLER;
@@ -256,7 +256,7 @@ namespace
         if (configJson.isMember("parameters")) {
             for (const auto& parameter: configJson["parameters"]) {
                 const auto& mqtt_channel = parameter["channel"].asString();
-                LoadTiming(res, mqtt_channel, configJson);
+                LoadTiming(res, parameter);
                 SmartWeb::TParameterInfo parameter_info{0};
                 parameter_info.parameter_id = parameter["parameter_id"].asUInt();
                 parameter_info.program_type = parameter["program_type"].asUInt();

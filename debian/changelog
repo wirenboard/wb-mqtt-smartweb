@@ -1,3 +1,12 @@
+wb-mqtt-smartweb (1.6.2) stable; urgency=medium
+
+  * Fix "value_timeout_min" being ignored for parameters: an outdated MQTT
+    value was sent to SmartWeb instead of an undefined one
+  * Fix MQTT values out of sensor range (-3276.5 ... 3276.7) being sent as
+    a sensor error state or a wrong value, report them as undefined
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Wed, 19 Aug 2026 16:20:00 +0400
+
 wb-mqtt-smartweb (1.6.1) stable; urgency=medium
 
   * Fix coverage reporting with GNU make 4.4 (trixie): export coverage

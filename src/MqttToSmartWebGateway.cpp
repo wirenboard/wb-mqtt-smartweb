@@ -272,7 +272,14 @@ void TMqttToSmartWebGateway::TaskFn()
             if (auto device = tx->GetDevice(device_id)) {
                 if (auto control = device->GetControl(control_id)) {
                     if (control->GetError().empty()) {
-                        return SmartWeb::SensorData::FromDouble(control->GetValue().As<double>());
+                        auto value = control->GetValue().As<double>();
+                        auto sensor_value = SmartWeb::SensorData::FromDouble(value);
+                        if (sensor_value == SmartWeb::SENSOR_UNDEFINED) {
+                            WarnMqttToSw.Log()
+                                << "MQTT value " << value << " of control " << control_id << " of device " << device_id
+                                << " is out of SmartWeb sensor range. Returning undefined value";
+                        }
+                        return sensor_value;
                     } else {
                         WarnMqttToSw.Log() << "Unable to read mqtt value because of error on control " << control_id
                                            << " of device " << device_id << ": " << control->GetError();

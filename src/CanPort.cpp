@@ -24,8 +24,9 @@ namespace
 
     template<class TDuration> void setTimeval(timeval& tv, TDuration timeout)
     {
-        tv.tv_sec = std::chrono::ceil<std::chrono::seconds>(timeout).count();
-        tv.tv_usec = (std::chrono::ceil<std::chrono::microseconds>(timeout).count() % 1000) * 1000;
+        const auto us = std::chrono::ceil<std::chrono::microseconds>(timeout).count();
+        tv.tv_sec = us / 1000000;
+        tv.tv_usec = us % 1000000;
     }
 
     void initMsghdr(msghdr& msg, can_frame& frame, iovec& iov, uint8_t* ctrlmsg, size_t ctrlmsgSize)
@@ -34,7 +35,7 @@ namespace
         iov.iov_len = sizeof(frame);
         msg.msg_iov = &iov;
         msg.msg_iovlen = 1;
-        msg.msg_control = &ctrlmsg;
+        msg.msg_control = ctrlmsg;
         msg.msg_controllen = ctrlmsgSize;
         msg.msg_flags = 0;
     }
