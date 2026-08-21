@@ -8,7 +8,12 @@
             "sensors": [
                 {
                     "channel": "wb-adc/R1",
-                    "sensor_index": 1
+                    "sensor_index": 1,
+                    "value_timeout_min": 7
+                },
+                {
+                    "channel": "wb-adc/A1",
+                    "sensor_index": 2
                 }
             ],
             "parameters": [
@@ -16,7 +21,14 @@
                     "channel": "wb-adc/Vin",
                     "parameter_id": 1,
                     "program_type": 11,
-                    "parameter_index": 0
+                    "parameter_index": 0,
+                    "value_timeout_min": 5
+                },
+                {
+                    "channel": "wb-adc/A2",
+                    "parameter_id": 2,
+                    "program_type": 11,
+                    "parameter_index": 1
                 }
             ]
         }

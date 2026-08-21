@@ -35,56 +35,71 @@ namespace
 {
     void PrintUsage();
 
-    void ApplyDebugParam(int debugLevel)
+    void DisableMqttToSwLogging()
     {
-        switch (debugLevel) {
-            case 0:
-                break;
-            case -1:
-                ErrorMqttToSw.SetEnabled(false);
-                WarnMqttToSw.SetEnabled(false);
-                InfoMqttToSw.SetEnabled(false);
-                DebugMqttToSw.SetEnabled(false);
-                break;
-            case -2:
-                ErrorSwToMqtt.SetEnabled(false);
-                WarnSwToMqtt.SetEnabled(false);
-                InfoSwToMqtt.SetEnabled(false);
-                DebugSwToMqtt.SetEnabled(false);
-                break;
-            case -3:
-                WBMQTT::Info.SetEnabled(false);
-                break;
-            case -4:
-                ErrorMqttToSw.SetEnabled(false);
-                WarnMqttToSw.SetEnabled(false);
-                InfoMqttToSw.SetEnabled(false);
-                DebugMqttToSw.SetEnabled(false);
-                ErrorSwToMqtt.SetEnabled(false);
-                WarnSwToMqtt.SetEnabled(false);
-                InfoSwToMqtt.SetEnabled(false);
-                DebugSwToMqtt.SetEnabled(false);
-                WBMQTT::Info.SetEnabled(false);
-                break;
-            case 1:
-                DebugMqttToSw.SetEnabled(true);
-                break;
-            case 2:
-                DebugSwToMqtt.SetEnabled(true);
-                break;
-            case 3:
-                WBMQTT::Debug.SetEnabled(true);
-                break;
-            case 4:
-                DebugMqttToSw.SetEnabled(true);
-                DebugSwToMqtt.SetEnabled(true);
-                WBMQTT::Debug.SetEnabled(true);
-                break;
-            default:
-                cout << "Invalid -d parameter value " << debugLevel << endl;
-                PrintUsage();
-                exit(2); // EXIT_INVALIDARGUMENT
+        ErrorMqttToSw.SetEnabled(false);
+        WarnMqttToSw.SetEnabled(false);
+        InfoMqttToSw.SetEnabled(false);
+        DebugMqttToSw.SetEnabled(false);
+    }
+
+    void DisableSwToMqttLogging()
+    {
+        ErrorSwToMqtt.SetEnabled(false);
+        WarnSwToMqtt.SetEnabled(false);
+        InfoSwToMqtt.SetEnabled(false);
+        DebugSwToMqtt.SetEnabled(false);
+    }
+
+    void SetDebugLevel(const char* optarg)
+    {
+        try {
+            auto debugLevel = stoi(optarg);
+            switch (debugLevel) {
+                case 0:
+                    return;
+
+                case -1:
+                    DisableMqttToSwLogging();
+                    return;
+
+                case -2:
+                    DisableSwToMqttLogging();
+                    return;
+
+                case -3:
+                    WBMQTT::Info.SetEnabled(false);
+                    return;
+
+                case -4:
+                    DisableMqttToSwLogging();
+                    DisableSwToMqttLogging();
+                    WBMQTT::Info.SetEnabled(false);
+                    return;
+
+                case 1:
+                    DebugMqttToSw.SetEnabled(true);
+                    return;
+
+                case 2:
+                    DebugSwToMqtt.SetEnabled(true);
+                    return;
+
+                case 3:
+                    WBMQTT::Debug.SetEnabled(true);
+                    return;
+
+                case 4:
+                    DebugMqttToSw.SetEnabled(true);
+                    DebugSwToMqtt.SetEnabled(true);
+                    WBMQTT::Debug.SetEnabled(true);
+                    return;
+            }
+        } catch (...) {
         }
+        cout << "Invalid -d parameter value " << optarg << endl;
+        PrintUsage();
+        exit(2); // EXIT_INVALIDARGUMENT
     }
 
     void PrintStartupInfo()
@@ -122,10 +137,10 @@ namespace
     {
         int c;
 
-        while ((c = getopt(argc, argv, "d:c:g:p:h:H:T:u:P:")) != -1) {
+        while ((c = getopt(argc, argv, "d:c:i:p:h:H:T:u:P:")) != -1) {
             switch (c) {
                 case 'd':
-                    ApplyDebugParam(stoi(optarg));
+                    SetDebugLevel(optarg);
                     break;
                 case 'c':
                     configFile = optarg;

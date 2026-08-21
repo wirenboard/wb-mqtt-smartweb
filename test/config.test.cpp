@@ -183,3 +183,26 @@ TEST_F(TLoadConfigTest, LoadConfig)
     EXPECT_EQ(0, temperatureSourceClass->Outputs.size());
     EXPECT_EQ(6, temperatureSourceClass->Parameters.size());
 }
+
+TEST_F(TLoadConfigTest, MqttToSmartWebValueTimeout)
+{
+    TConfig config;
+    ASSERT_NO_THROW(LoadConfig(config,
+                               TestRootDir + "/test_config.json",
+                               TestRootDir + "/classes",
+                               TestRootDir + "/builtin_classes",
+                               SchemaFile,
+                               ClassSchemaFile));
+
+    ASSERT_EQ(1, config.Controllers.size());
+    const auto& timings = config.Controllers.front().MqttChannelsTiming;
+    ASSERT_EQ(4, timings.size());
+
+    // value_timeout_min is set in the mapping, it must be taken from the mapping itself
+    EXPECT_EQ(7, timings.at("wb-adc/R1").ValueTimeoutMin.count());
+    EXPECT_EQ(5, timings.at("wb-adc/Vin").ValueTimeoutMin.count());
+
+    // value_timeout_min is omitted, the default "no timeout" value must be used
+    EXPECT_EQ(-1, timings.at("wb-adc/A1").ValueTimeoutMin.count());
+    EXPECT_EQ(-1, timings.at("wb-adc/A2").ValueTimeoutMin.count());
+}

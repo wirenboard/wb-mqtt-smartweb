@@ -8,13 +8,6 @@
 
 #include "MqttToSmartWebGateway.h"
 
-namespace
-{
-    const int16_t SENSOR_SHORT_VALUE = -32768;
-    const int16_t SENSOR_OPEN_VALUE = -32767;
-    const int16_t SENSOR_UNDEFINED = -32766;
-}
-
 TEnumCodec::TEnumCodec(const std::map<uint8_t, std::string>& values): Values(values)
 {
     for (const auto& v: values) {
@@ -53,10 +46,10 @@ std::string TSensorCodec::Decode(const uint8_t* buf) const
 {
     int16_t v;
     memcpy(&v, buf, 2);
-    if (v == SENSOR_UNDEFINED) {
+    if (v == SmartWeb::SENSOR_UNDEFINED) {
         throw std::runtime_error("sensor is in undefined state");
     }
-    if (v == SENSOR_SHORT_VALUE || v == SENSOR_OPEN_VALUE) {
+    if (v == SmartWeb::SENSOR_SHORT_VALUE || v == SmartWeb::SENSOR_OPEN_VALUE) {
         throw std::runtime_error("sensor error " + std::to_string(v));
     }
     return WBMQTT::FormatFloat(v / 10.0);
@@ -76,13 +69,13 @@ std::string TOnOffSensorCodec::Decode(const uint8_t* buf) const
 {
     int16_t v;
     memcpy(&v, buf, 2);
-    if (v == SENSOR_SHORT_VALUE) {
+    if (v == SmartWeb::SENSOR_SHORT_VALUE) {
         return "1";
     }
-    if (v == SENSOR_OPEN_VALUE) {
+    if (v == SmartWeb::SENSOR_OPEN_VALUE) {
         return "0";
     }
-    if (v == SENSOR_UNDEFINED) {
+    if (v == SmartWeb::SENSOR_UNDEFINED) {
         throw std::runtime_error("sensor is in undefined state");
     }
     return std::to_string(v);

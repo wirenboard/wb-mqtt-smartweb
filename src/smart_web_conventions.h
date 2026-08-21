@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <limits>
 #include <stdint.h>
 
@@ -8,6 +9,11 @@ namespace SmartWeb
     const int16_t SENSOR_SHORT_VALUE = -32768;
     const int16_t SENSOR_OPEN_VALUE = -32767;
     const int16_t SENSOR_UNDEFINED = -32766;
+
+    //! SENSOR_UNDEFINED and lower raw values are reserved for sensor states,
+    //! so a measurement fits in -3276.5 ... 3276.7 only
+    const int16_t SENSOR_VALUE_MIN = static_cast<int16_t>(SENSOR_UNDEFINED + 1);
+    const int16_t SENSOR_VALUE_MAX = std::numeric_limits<int16_t>::max();
 
     enum E_MessageFormat : uint8_t
     {
@@ -278,7 +284,14 @@ namespace SmartWeb
     {
         inline int16_t FromDouble(double value)
         {
-            return static_cast<int16_t>(value * 10);
+            if (std::isnan(value)) {
+                return SENSOR_UNDEFINED;
+            }
+            auto raw = std::round(value * 10);
+            if (raw < SENSOR_VALUE_MIN || raw > SENSOR_VALUE_MAX) {
+                return SENSOR_UNDEFINED;
+            }
+            return static_cast<int16_t>(raw);
         }
 
         inline double ToDouble(int16_t value)
