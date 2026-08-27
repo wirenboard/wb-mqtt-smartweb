@@ -13,6 +13,23 @@ namespace
     const int16_t SENSOR_SHORT_VALUE = -32768;
     const int16_t SENSOR_OPEN_VALUE = -32767;
     const int16_t SENSOR_UNDEFINED = -32766;
+
+    std::string MakeDeviceName(const std::string& className, uint8_t programId)
+    {
+        return "sw " + className + " " + std::to_string(programId);
+    }
+
+    std::string GetErrorText(bool readError, bool writeError)
+    {
+        std::string res;
+        if (readError) {
+            res += "r";
+        }
+        if (writeError) {
+            res += "w";
+        }
+        return res;
+    }
 }
 
 TEnumCodec::TEnumCodec(const std::map<uint8_t, std::string>& values): Values(values)
@@ -138,31 +155,118 @@ TSmartWebToMqttGateway::TSmartWebToMqttGateway(const TSmartWebToMqttConfig& conf
                                                WBMQTT::PDeviceDriver driver)
     : Config(config),
       Driver(driver),
+      CanPort(canPort),
       RequestIndex(0),
       Scheduler(MakeSimpleThreadedScheduler("SW to MQTT"))
 {
-    EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this, canPort](const WBMQTT::TControlOnValueEvent& event) {
+    EventHandler = Driver->On<WBMQTT::TControlOnValueEvent>([this](const WBMQTT::TControlOnValueEvent& event) {
         try {
             auto param = event.Control->GetUserData().As<TSmartWebParameterControl>();
             auto frame = MakeSetParameterValueRequest(param, event.RawValue);
-            canPort->Send(frame);
+            CanPort->Send(frame);
             print_frame(DebugSwToMqtt, frame, "Set value request");
         } catch (const std::exception& e) {
             ErrorSwToMqtt.Log() << "Set value request: " << e.what();
+            SetControlWriteError(event.Control->GetDevice()->GetId(), event.Control->GetId());
         }
     });
 
-    Scheduler->AddTask(MakePeriodicTask(
-        config.PollInterval,
-        [this, canPort]() { this->HandleMapping(*canPort); },
-        "SmartWeb->MQTT task"));
+    auto poll = [this]() { HandleMapping(); };
+    Scheduler->AddTask(MakePeriodicTask(config.PollInterval, poll, "SmartWeb->MQTT task"));
 
     CanReader = std::make_unique<TThreadedCanReader>(
         "SmartWeb->MQTT reader",
         canPort,
         100,
         [this](const CAN::TFrame& frame) { return AcceptFrame(frame); },
-        [this](const CAN::TFrame& frame) { HandleFrame(frame); });
+        [this](const CAN::TFrame& frame) { HandleFrame(frame); },
+        [this](bool connected) { SetPortLost(!connected); });
+}
+
+void TSmartWebToMqttGateway::SetPortLost(bool lost)
+{
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        PortLost = lost;
+    }
+    PublishAllErrors();
+}
+
+void TSmartWebToMqttGateway::SetDeviceUnreachable(const std::string& deviceId)
+{
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        ErrorState[deviceId].Unreachable = true;
+    }
+    PublishErrors(deviceId);
+}
+
+void TSmartWebToMqttGateway::SetControlReadResult(const std::string& deviceId, const std::string& controlId, bool ok)
+{
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        auto& device = ErrorState[deviceId];
+        device.Unreachable = false;
+        auto& control = device.Controls[controlId];
+        control.ReadError = !ok;
+        if (ok) {
+            control.WriteError = false;
+        }
+    }
+    PublishErrors(deviceId);
+}
+
+void TSmartWebToMqttGateway::SetControlWriteError(const std::string& deviceId, const std::string& controlId)
+{
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        ErrorState[deviceId].Controls[controlId].WriteError = true;
+    }
+    PublishErrors(deviceId);
+}
+
+void TSmartWebToMqttGateway::PublishErrors(const std::string& deviceId)
+{
+    std::string deviceError;
+    std::map<std::string, std::string> controlErrors;
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        auto it = ErrorState.find(deviceId);
+        if (it == ErrorState.end()) {
+            return;
+        }
+        bool deviceReadError = PortLost || it->second.Unreachable;
+        deviceError = GetErrorText(deviceReadError, false);
+        for (const auto& control: it->second.Controls) {
+            controlErrors[control.first] =
+                GetErrorText(deviceReadError || control.second.ReadError, control.second.WriteError);
+        }
+    }
+    Driver->AccessAsync([deviceId, deviceError, controlErrors](const WBMQTT::PDriverTx& tx) {
+        auto device = std::dynamic_pointer_cast<WBMQTT::TLocalDevice>(tx->GetDevice(deviceId));
+        if (!device) {
+            return;
+        }
+        device->SetError(tx, deviceError);
+        for (const auto& control: device->ControlsList()) {
+            auto it = controlErrors.find(control->GetId());
+            control->SetError(tx, it != controlErrors.end() ? it->second : deviceError);
+        }
+    });
+}
+
+void TSmartWebToMqttGateway::PublishAllErrors()
+{
+    std::vector<std::string> devices;
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        for (const auto& device: ErrorState) {
+            devices.push_back(device.first);
+        }
+    }
+    for (const auto& device: devices) {
+        PublishErrors(device);
+    }
 }
 
 TSmartWebToMqttGateway::~TSmartWebToMqttGateway()
@@ -219,8 +323,14 @@ bool TSmartWebToMqttGateway::AcceptFrame(const CAN::TFrame& frame) const
     return false;
 }
 
-void TSmartWebToMqttGateway::HandleMapping(CAN::IPort& canPort)
+void TSmartWebToMqttGateway::HandleMapping()
 {
+    {
+        std::unique_lock<std::mutex> lk(ErrorStateMutex);
+        if (PortLost) {
+            return;
+        }
+    }
     CAN::TFrame frame;
     {
         std::unique_lock<std::mutex> lk(RequestMutex);
@@ -233,12 +343,24 @@ void TSmartWebToMqttGateway::HandleMapping(CAN::IPort& canPort)
         frame = Requests[RequestIndex];
     }
     try {
-        canPort.Send(frame);
+        CanPort->Send(frame);
         print_frame(DebugSwToMqtt, frame, "Send request");
     } catch (const std::exception& e) {
         print_frame(ErrorSwToMqtt, frame, std::string("Send request: ") + e.what());
+        SetDeviceUnreachable(GetDeviceName(frame));
     }
     ++RequestIndex;
+}
+
+std::string TSmartWebToMqttGateway::GetDeviceName(const CAN::TFrame& frame)
+{
+    SmartWeb::TCanHeader* header = (SmartWeb::TCanHeader*)&frame.can_id;
+    std::unique_lock<std::mutex> lk(KnownProgramsMutex);
+    auto cl = KnownPrograms.find(header->rec.program_id);
+    if (cl == KnownPrograms.end()) {
+        return std::string();
+    }
+    return MakeDeviceName(cl->second->Name, header->rec.program_id);
 }
 
 CAN::TFrame MakeSetParameterValueRequest(const TSmartWebParameterControl& param, const std::string& value)
@@ -323,6 +445,7 @@ void AddRequests(std::vector<CAN::TFrame>& requests,
 void TSmartWebToMqttGateway::AddProgram(const CAN::TFrame& frame)
 {
     SmartWeb::TCanHeader* header = (SmartWeb::TCanHeader*)&frame.can_id;
+    std::unique_lock<std::mutex> knownProgramsLock(KnownProgramsMutex);
     if (KnownPrograms.count(header->rec.program_id)) {
         return;
     }
@@ -407,7 +530,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
                            << p->second->Name << ": " << e.what();
         error = true;
     }
-    std::string deviceName("sw " + p->second->ProgramClass->Name + " " + std::to_string(programId));
+    auto deviceName = MakeDeviceName(p->second->ProgramClass->Name, programId);
     try {
         auto tx = Driver->BeginTx();
         WBMQTT::PLocalDevice device(std::dynamic_pointer_cast<WBMQTT::TLocalDevice>(tx->GetDevice(deviceName)));
@@ -419,9 +542,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
         }
         auto control = device->GetControl(p->second->Name);
         if (control) {
-            if (error) {
-                control->SetError(tx, "r").Sync();
-            } else {
+            if (!error) {
                 control->SetRawValue(tx, res).Sync();
             }
         } else {
@@ -430,6 +551,7 @@ void TSmartWebToMqttGateway::SetParameter(const std::map<uint32_t, std::shared_p
     } catch (const std::exception& e) {
         ErrorSwToMqtt.Log() << e.what();
     }
+    SetControlReadResult(deviceName, p->second->Name, !error);
 }
 
 void TSmartWebToMqttGateway::HandleGetValueResponse(const CAN::TFrame& frame)

@@ -245,6 +245,7 @@ class TSmartWebToMqttGateway
     TSmartWebToMqttConfig Config;
     WBMQTT::PDeviceDriver Driver;
     WBMQTT::PDriverEventHandlerHandle EventHandler;
+    std::shared_ptr<CAN::IPort> CanPort;
     std::vector<std::string> DeviceIds;
 
     std::mutex RequestMutex;
@@ -259,7 +260,23 @@ class TSmartWebToMqttGateway
 
     std::unique_ptr<TThreadedCanReader> CanReader;
 
-    void HandleMapping(CAN::IPort& canPort);
+    struct TControlErrorState
+    {
+        bool ReadError = false;
+        bool WriteError = false;
+    };
+
+    struct TDeviceErrorState
+    {
+        bool Unreachable = false;
+        std::map<std::string, TControlErrorState> Controls;
+    };
+
+    std::mutex ErrorStateMutex;
+    bool PortLost = false;
+    std::map<std::string, TDeviceErrorState> ErrorState;
+
+    void HandleMapping();
     void AddProgram(const CAN::TFrame& frame);
     void HandleGetValueResponse(const CAN::TFrame& frame);
 
@@ -267,6 +284,16 @@ class TSmartWebToMqttGateway
                       uint8_t parameterId,
                       const uint8_t* data,
                       uint8_t programId);
+
+    std::string GetDeviceName(const CAN::TFrame& frame);
+
+    void SetPortLost(bool lost);
+    void SetDeviceUnreachable(const std::string& deviceId);
+    void SetControlReadResult(const std::string& deviceId, const std::string& controlId, bool ok);
+    void SetControlWriteError(const std::string& deviceId, const std::string& controlId);
+
+    void PublishErrors(const std::string& deviceId);
+    void PublishAllErrors();
 
     WBMQTT::TControlArgs MakeControlArgs(uint8_t programId,
                                          const TSmartWebParameter& param,

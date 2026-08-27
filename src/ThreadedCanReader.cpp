@@ -12,10 +12,12 @@ TThreadedCanReader::TThreadedCanReader(const std::string& threadName,
                                        std::shared_ptr<CAN::IPort> canPort,
                                        size_t framesQueueMaxLength,
                                        std::function<bool(const CAN::TFrame& frame)> acceptFrame,
-                                       std::function<void(const CAN::TFrame& frame)> handleFrame)
+                                       std::function<void(const CAN::TFrame& frame)> handleFrame,
+                                       std::function<void(bool connected)> handleConnectionChange)
     : CanPort(canPort),
       FramesQueueMaxLength(framesQueueMaxLength),
-      AcceptFrame(acceptFrame)
+      AcceptFrame(acceptFrame),
+      HandleConnectionChange(handleConnectionChange)
 {
     Enabled.store(true);
     CanPort->AddHandler(this);
@@ -39,6 +41,11 @@ TThreadedCanReader::~TThreadedCanReader()
     if (Thread.joinable()) {
         Thread.join();
     }
+}
+
+void TThreadedCanReader::OnConnectionChanged(bool connected)
+{
+    HandleConnectionChange(connected);
 }
 
 bool TThreadedCanReader::Handle(const CAN::TFrame& frame)

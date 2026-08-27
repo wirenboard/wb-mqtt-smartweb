@@ -98,6 +98,7 @@ class TMqttToSmartWebGateway: public CAN::IFrameHandler
 
     std::thread Thread;
     std::atomic_bool Enabled;
+    std::atomic_bool PortConnected{false};
 
     static bool FilterIsSet;
     static std::mutex StartupMutex;
@@ -105,6 +106,7 @@ class TMqttToSmartWebGateway: public CAN::IFrameHandler
     bool SelectTimeout(CAN::TFrame& frame);
     void TaskFn();
     bool Handle(const CAN::TFrame& frame);
+    void OnConnectionChanged(bool connected) override;
     bool IsForMe(const SmartWeb::TCanHeader& header, const CAN::TFrameData& data) const;
 
 public:

@@ -153,6 +153,11 @@ TMqttToSmartWebGateway::~TMqttToSmartWebGateway()
     }
 }
 
+void TMqttToSmartWebGateway::OnConnectionChanged(bool connected)
+{
+    PortConnected.store(connected);
+}
+
 bool TMqttToSmartWebGateway::Handle(const CAN::TFrame& frame)
 {
     SmartWeb::TCanHeader header;
@@ -241,6 +246,9 @@ void TMqttToSmartWebGateway::TaskFn()
     auto postpone_connection_reset = [&] { ResetConnectionTime = now() + CONNECTION_TIMEOUT_MIN; };
 
     auto send_frame = [&](TFrame& frame, const std::string& prefix) {
+        if (!PortConnected.load()) {
+            return;
+        }
         frame.can_id |= CAN_EFF_FLAG; // just in case
         try {
             CanPort->Send(frame);

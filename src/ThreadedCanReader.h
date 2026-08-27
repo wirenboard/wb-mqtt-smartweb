@@ -22,8 +22,10 @@ class TThreadedCanReader: public CAN::IFrameHandler
     std::atomic_bool Enabled;
 
     std::function<bool(const CAN::TFrame& frame)> AcceptFrame;
+    std::function<void(bool connected)> HandleConnectionChange;
 
     bool Handle(const CAN::TFrame& frame);
+    void OnConnectionChanged(bool connected);
     bool Get(CAN::TFrame& frame);
 
 public:
@@ -31,6 +33,7 @@ public:
                        std::shared_ptr<CAN::IPort> canPort,
                        size_t framesQueueMaxLength,
                        std::function<bool(const CAN::TFrame& frame)> acceptFrame,
-                       std::function<void(const CAN::TFrame& frame)> handleFrame);
+                       std::function<void(const CAN::TFrame& frame)> handleFrame,
+                       std::function<void(bool connected)> handleConnectionChange);
     ~TThreadedCanReader();
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <memory>
@@ -22,6 +23,9 @@ namespace CAN
          * @return false
          */
         virtual bool Handle(const TFrame& frame) = 0;
+
+        virtual void OnConnectionChanged(bool connected)
+        {}
     };
 
     class IPort

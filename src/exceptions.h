@@ -23,10 +23,3 @@ public:
     explicit TFrameError(const std::string& what): TDriverError(what)
     {}
 };
-
-class TInterfaceNotFoundError: public std::runtime_error
-{
-public:
-    explicit TInterfaceNotFoundError(const std::string& what): std::runtime_error(what)
-    {}
-};

@@ -8,7 +8,6 @@
 #include "MqttToSmartWebGateway.h"
 #include "SmartWebToMqttGateway.h"
 #include "config_parser.h"
-#include "exceptions.h"
 #include "log.h"
 
 #define STR(x) #x
@@ -25,6 +24,10 @@ const auto CONFIG_JSON_SCHEMA_FULL_FILE_PATH = "/usr/share/wb-mqtt-confed/schema
 const auto CLASS_JSON_SCHEMA_FULL_FILE_PATH = "/usr/share/wb-mqtt-confed/schemas/wb-mqtt-smartweb-class.schema.json";
 
 const auto DRIVER_STOP_TIMEOUT_S = chrono::seconds(10);
+
+const int EXIT_INVALIDARGUMENT = 2;
+const int EXIT_NOTCONFIGURED = 6;
+const int EXIT_NOTRUNNING = 7;
 
 //! Maximun time to start application. Exceded timeout will case application termination.
 const auto DRIVER_INIT_TIMEOUT_S = chrono::seconds(60);
@@ -83,7 +86,7 @@ namespace
             default:
                 cout << "Invalid -d parameter value " << debugLevel << endl;
                 PrintUsage();
-                exit(2); // EXIT_INVALIDARGUMENT
+                exit(EXIT_INVALIDARGUMENT);
         }
     }
 
@@ -151,7 +154,7 @@ namespace
                     break;
                 default:
                     PrintUsage();
-                    exit(2); // EXIT_INVALIDARGUMENT
+                    exit(EXIT_INVALIDARGUMENT);
             }
         }
     }
@@ -194,7 +197,7 @@ int main(int argc, char* argv[])
             config.Mqtt.Id = APP_NAME;
     } catch (const exception& e) {
         LOG(WBMQTT::Error) << "FATAL: " << e.what();
-        return 6; // EXIT_NOTCONFIGURED
+        return EXIT_NOTCONFIGURED;
     }
 
     try {
@@ -209,6 +212,7 @@ int main(int argc, char* argv[])
 
         driver->StartLoop();
         driver->WaitForReady();
+        RemoveUnusedDevices(driver);
 
         auto port = CAN::MakePort(config.InterfaceName);
 
@@ -225,13 +229,10 @@ int main(int argc, char* argv[])
         }
         driver->StopLoop();
         driver->Close();
-    } catch (const TInterfaceNotFoundError& e) {
-        LOG(WBMQTT::Error) << "FATAL: " << e.what();
-        return 6; // EXIT_NOTCONFIGURED
     } catch (const exception& e) {
         LOG(WBMQTT::Error) << "FATAL: " << e.what();
         return 1;
     }
 
-    return 0;
+    return EXIT_NOTRUNNING;
 }

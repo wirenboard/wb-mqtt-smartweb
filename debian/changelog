@@ -1,3 +1,18 @@
+wb-mqtt-smartweb (1.7.0) stable; urgency=medium
+
+  * Reconnect to CAN instead of stopping the service, indicate the loss via meta/error
+  * Wait for a missing or down CAN interface instead of exiting with error 6
+  * Set meta/error on devices as well as on controls when CAN connection is lost
+  * Set meta/error "w" on a control when writing its value to CAN fails
+  * Clear meta/error of a control on the next successfully read value
+  * Set meta/error "r" on a device when a request to it can't be sent, clear it on a response
+  * Remove devices left in the broker by a previous run on startup
+  * Exit with 7 on SIGTERM/SIGINT
+  * Fix dangling msg_control pointer in CAN frame reception
+  * systemd unit: Restart=on-failure, 7 is success, start after mosquitto, drop disabled start limit
+
+ -- Ekaterina Volkova <ekaterina.volkova@wirenboard.com>  Thu, 20 Aug 2026 13:18:25 +0000
+
 wb-mqtt-smartweb (1.6.1) stable; urgency=medium
 
   * Fix coverage reporting with GNU make 4.4 (trixie): export coverage
